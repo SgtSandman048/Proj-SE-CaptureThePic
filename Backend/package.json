@@ -10,8 +10,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.4",
     "express": "^5.2.1",
-    "firebase": "^12.8.0",
+    "firebase": "^12.9.0",
+    "firebase-admin": "^13.6.1",
+    "multer": "^2.0.2",
+    "multer-storage-cloudinary": "^4.0.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   }

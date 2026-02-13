@@ -1,17 +1,25 @@
-// import { initializeApp } from 'firebase/app';
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
 
-const express = require('express')
-const app = express()
-const port = 8080
+const app = express();
+const apiRoutes = require('./routes/apiRoutes');
 
-/*const firebaseConfig = {
-  //...
-};*/
+// Middleware
+app.use(cors());
+app.use(express.json()); // อ่าน JSON body
+app.use(express.urlencoded({ extended: true }));
 
-app.get('/', (req, res) => res.send('Hello World'))
+// Routes
+app.use('/api', apiRoutes);
 
-app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`)
-})
+// Base Route
+app.get('/', (req, res) => {
+  res.send('Photo Market Backend API is running...');
+});
 
-module.exports = app
+// Start Server
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
