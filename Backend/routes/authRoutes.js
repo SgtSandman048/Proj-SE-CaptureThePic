@@ -1,78 +1,83 @@
 // routes/authRoutes.js
 const express = require('express');
+const rateLimit = require('express-rate-limit');
+const { body } = require('express-validator');
 const router = express.Router();
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
 
-// Register
-router.post('/register', async (req, res) => {
-  try {
-    const { username, email, password } = req.body;
+// Reminder: If you want use some API that disabled, Remove //.
+const {
+  register,
+  login,
+  refreshToken,
+  logout,
+  getMe,
+  //changePassword,
+} = require('../controllers/authController');
+const { authenticate } = require('../middleware/authMiddleware');
 
-    // Check if user already exists
-    let user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
-
-    // Create new user
-    user = new User({
-      username,
-      email,
-      password
-    });
-
-    await user.save();
-
-    res.status(201).json({ message: 'User registered successfully' });
-
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
+// Login Limitation
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 10,
+  message: { success: false, message: 'Too many attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
-// Login
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
+// Validator
+const registerValidators = [
+  body('username')
+    .trim()
+    .isLength({ min: 3, max: 30 })
+    .withMessage('Username must be 3–30 characters')
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage('Username can only contain letters, numbers, and underscores'),
 
-    // Check if user exists
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
+  body('email')
+    .trim()
+    .isEmail()
+    .withMessage('Please provide a valid email address')
+    .normalizeEmail(),
 
-    // Verify password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
+  body('pass')
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
 
-    // Create JWT token
-    const payload = {
-      id: user._id,
-      username: user.username,
-      email: user.email
-    };
+  body('role')
+    .isIn(['buyer', 'seller'])
+    .withMessage('Role must be either "buyer" or "seller"'),
+];
 
-    const token = jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+const loginValidators = [
+  body('email').trim().isEmail().withMessage('Valid email required').normalizeEmail(),
+  body('pass').notEmpty().withMessage('Password is required'),
+];
 
-    res.json({
-      token,
-      username: user.username,
-      email: user.email
-    });
+// Remove /**/ If you want to use this API.
+/*
+const changePasswordValidators = [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  body('newPassword')
+    .isLength({ min: 8 })
+    .withMessage('New password must be at least 8 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('Password must contain uppercase, lowercase, and a number'),
+];*/
 
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
+
+// Reminder: If you want use some API that disabled, Remove //.
+router.post('/register', authLimiter, registerValidators, register);
+
+router.post('/login', authLimiter, loginValidators, login);
+
+router.post('/refresh-token', refreshToken);
+
+router.post('/logout', authenticate, logout);
+
+router.get('/me', authenticate, getMe);
+
+//router.post('/change-password', authenticate, changePasswordValidators, changePassword);
 
 module.exports = router;

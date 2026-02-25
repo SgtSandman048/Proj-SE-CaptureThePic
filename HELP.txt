@@ -1,0 +1,6 @@
+Before running server, check this following list before arguing me.
+
+1. Make sure you have downloaded serviceAccountKey.json and .env from Discord.
+    1.1 Not download serviceAccountKey.json? Download it and put it into "Backend" folder.
+    1.2 Not download .env? Like the 1.1 but make sure you have downloaded both. There're 2 env file for frontend and backend. Put them into correct path.
+2. Do not touch the authentication system. I'll kill you if you ruined them.
