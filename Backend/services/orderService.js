@@ -1,5 +1,7 @@
+// services/orderService.js
+
 const { db: getDb } = require('../config/firebase');
-const cloudinary = require('../config/cloudinary');
+const { cloudinary, generateSignedUrl } = require('../config/cloudinary');
 const { calculatePrice } = require('../utils/priceCalculator');
 
 const db = getDb();
@@ -7,12 +9,8 @@ const db = getDb();
 const ORDERS_COL = 'orders';
 const IMAGES_COL = 'images';
 
-/**
- * Create a new order with status 'pending'.
- * Throws:
- *   IMAGE_NOT_FOUND   — imageId does not exist in Firestore
- *   ALREADY_PURCHASED — user already has a completed order for this image
- */
+
+// Create a new order
 const createOrder = async ({ userId, imageId }) => {
   // 1. Verify the image exists
   const imageRef = db.collection(IMAGES_COL).doc(imageId);
@@ -21,7 +19,7 @@ const createOrder = async ({ userId, imageId }) => {
 
   const image = imageSnap.data();
 
-  // 2. Guard: prevent duplicate purchase
+  // 2. Prevent duplicate purchase
   const existingSnap = await db
     .collection(ORDERS_COL)
     .where('userId', '==', userId)
@@ -55,13 +53,8 @@ const createOrder = async ({ userId, imageId }) => {
   return { id: orderRef.id, ...orderData };
 };
 
-/**
- * Upload a payment slip to Cloudinary and move the order to 'checking'.
- * Throws:
- *   ORDER_NOT_FOUND — orderId does not exist
- *   FORBIDDEN       — order belongs to a different user
- *   INVALID_STATUS  — order is not pending/checking
- */
+
+// Upload a payment slip to Cloudinary
 const uploadSlip = async ({ orderId, userId, file }) => {
   const orderRef = db.collection(ORDERS_COL).doc(orderId);
   const orderSnap = await orderRef.get();
@@ -96,9 +89,8 @@ const uploadSlip = async ({ orderId, userId, file }) => {
   });
 };
 
-/**
- * Return all orders for a given user, sorted newest-first.
- */
+
+// Return all orders for a given user
 const getOrdersByUser = async (userId) => {
   const snap = await db
     .collection(ORDERS_COL)
@@ -109,13 +101,8 @@ const getOrdersByUser = async (userId) => {
   return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
-/**
- * Return the original Cloudinary download URL for a completed order.
- * Throws:
- *   ORDER_NOT_FOUND — orderId does not exist
- *   FORBIDDEN       — order belongs to a different user
- *   NOT_COMPLETED   — order has not been verified yet
- */
+
+// Return the original download URL
 const getDownloadUrl = async ({ orderId, userId }) => {
   const orderRef = db.collection(ORDERS_COL).doc(orderId);
   const orderSnap = await orderRef.get();
@@ -130,8 +117,11 @@ const getDownloadUrl = async ({ orderId, userId }) => {
   // Fetch the image to get the original Cloudinary URL
   const imageSnap = await db.collection(IMAGES_COL).doc(order.imageId).get();
   const image = imageSnap.data();
+  if (!image.originalPublicId) throw new Error('ORIGINAL_NOT_FOUND');
 
-  return image.originalUrl;
+  const downloadUrl = generateSignedUrl(image.originalPublicId, 3600);
+
+  return downloadUrl;
 };
 
 module.exports = { createOrder, uploadSlip, getOrdersByUser, getDownloadUrl };

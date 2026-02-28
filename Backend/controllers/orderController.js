@@ -1,16 +1,17 @@
+// controllers/orderController.js
+
 const orderService = require('../services/orderService');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
 
-/**
- * POST /api/orders
- * Create a new pending order for an image.
- */
+
+// POST /api/orders
 const createOrder = async (req, res) => {
   try {
     const { imageId } = req.body;
 
     if (!imageId) {
-      return res.status(400).json(errorResponse('imageId is required'));
+      //return res.status(400).json(errorResponse('imageId is required'));
+      return sendError(res, 400, 'imageId is required');
     }
 
     const order = await orderService.createOrder({
@@ -35,16 +36,14 @@ const createOrder = async (req, res) => {
   }
 };
 
-/**
- * PATCH /api/orders/:id/upload-slip
- * Upload a payment slip image for an existing pending/checking order.
- */
+
+// PATCH /api/orders/:id/upload-slip
 const uploadSlip = async (req, res) => {
   try {
     const { id } = req.params;
 
     if (!req.file) {
-      return res.status(400).json(errorResponse('slipFile is required'));
+      return sendError(res, 400, 'slipFile is required');
     }
 
     await orderService.uploadSlip({
@@ -71,10 +70,8 @@ const uploadSlip = async (req, res) => {
   }
 };
 
-/**
- * GET /api/orders/my-orders
- * Return the order history for the authenticated user.
- */
+
+// GET /api/orders/my-orders
 const getMyOrders = async (req, res) => {
   try {
     const orders = await orderService.getOrdersByUser(req.user.uid);
@@ -93,10 +90,7 @@ const getMyOrders = async (req, res) => {
   }
 };
 
-/**
- * GET /api/orders/:id/download
- * Return the original Cloudinary URL — only accessible when status is 'completed'.
- */
+// GET /api/orders/:id/download
 const getDownloadUrl = async (req, res) => {
   try {
     const { id } = req.params;
@@ -117,7 +111,13 @@ const getDownloadUrl = async (req, res) => {
     if (err.message === 'NOT_COMPLETED') {
       return sendError(res, 403, 'Order is not yet completed');
     }
-    console.error('[getDownloadUrl]', err);
+    if (err.message === 'IMAGE_NOT_FOUND') {
+      return sendError(res, 404, 'Image no longer exists');
+    }   
+    if (err.message === 'ORIGINAL_NOT_FOUND') {
+      return sendError(res, 404, 'Original file not available for this image');
+    }
+      console.error('[getDownloadUrl]', err);
     return sendError(res, 500, 'Failed to get download URL');
   }
 };

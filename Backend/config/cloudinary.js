@@ -1,15 +1,4 @@
 // config/cloudinary.js
-/*
-const cloudinary = require('cloudinary').v2;
-require('dotenv').config();
-
-cloudinary.config({ 
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-module.exports = cloudinary;*/
 
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
@@ -35,6 +24,12 @@ const imageFileFilter = (req, file, cb) => {
   } else {
     cb(new Error('Invalid file type. Only JPEG, PNG, WEBP, and TIFF are allowed.'), false);
   }
+};
+
+const slipFileFilter = (req, file, cb) => {
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  if (allowed.includes(file.mimetype)) return cb(null, true);
+  cb(new Error('Invalid slip file type. Only JPEG, PNG, WEBP allowed.'), false);
 };
 
 // Watermark Storage
@@ -94,32 +89,55 @@ const originalStorage = new CloudinaryStorage({
   },
 });
 
-// Multer instances
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const slipStorage = new CloudinaryStorage({
+  cloudinary,
+  params: async (req, file) => ({
+    folder: 'image-store/slips',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    type: 'private',   // 🔒 Private — admin eyes only
+    public_id: `slip_${req.params.id || 'unknown'}_${Date.now()}`,
+    transformation: [
+      // Resize large slip images to save storage — keep readable quality
+      { width: 1600, crop: 'limit', quality: 'auto:good' },
+    ],
+  }),
+});
 
-// Used for image uploads — uploads BOTH watermarked preview
+// Multer values
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const MAX_SLIP_SIZE  = 10 * 1024 * 1024;  // 10 MB for slips
+
+// Upload watermarked image
 const uploadWatermarked = multer({
   storage: watermarkStorage,
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: imageFileFilter,
 });
 
-// Used for the original high-res upload
+// Upload original image
 const uploadOriginal = multer({
   storage: originalStorage,
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: imageFileFilter,
 });
 
-// Helper: Generate signed download URL for purchased originals
+// Upload slip image
+const uploadSlipFile = multer({
+  storage: slipStorage,
+  limits: { fileSize: MAX_SLIP_SIZE },
+  fileFilter: slipFileFilter,
+});
+
+// Generate download URL
 const generateSignedUrl = (publicId, expiresIn = 3600) => {
   return cloudinary.utils.private_download_url(publicId, 'jpg', {
     expires_at: Math.floor(Date.now() / 1000) + expiresIn,
-    attachment: false,   // false = view in browser, true = force download
+    // True = Force download, False = View before download
+    attachment: true,
   });
 };
 
-// Helper: Delete image from Cloudinary by public_id
+// Delete image by id
 const deleteCloudinaryImage = async (publicId, type = 'upload') => {
   try {
     const result = await cloudinary.uploader.destroy(publicId, {
@@ -140,6 +158,7 @@ module.exports = {
   cloudinary,
   uploadWatermarked,
   uploadOriginal,
+  uploadSlipFile,
   generateSignedUrl,
   deleteCloudinaryImage,
 };

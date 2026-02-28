@@ -1,6 +1,7 @@
 // routes/imageRoutes.js
 
 const express = require('express');
+const multer  = require('multer');
 const { body, query } = require('express-validator');
 const router = express.Router();
 
@@ -14,10 +15,19 @@ const {
 
 const { authenticate, optionalAuthenticate } = require('../middleware/authMiddleware');
 const { requireSeller } = require('../middleware/roleMiddleware');
-const { uploadWatermarked } = require('../config/cloudinary');
+const { uploadWatermarked, uploadOriginal } = require('../config/cloudinary');
 const { IMAGE_CATEGORIES } = require('../models/imageModel');
 
-// ── Upload validators ──────────────────────────────────────────────────────
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },   // 50MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/tiff'];
+    if (allowed.includes(file.mimetype)) return cb(null, true);
+    cb(new Error('Invalid file type. Only JPEG, PNG, WEBP, and TIFF are allowed.'), false);
+  },
+});
+
 const uploadValidators = [
   body('imageName')
     .trim()
@@ -47,7 +57,7 @@ router.get('/', optionalAuthenticate, getImages);
 router.post('/upload',
   authenticate,
   requireSeller,
-  uploadWatermarked.single('file'),   // Multer processes 'file' field → uploads to Cloudinary
+  upload.single('file'),  
   uploadValidators,
   uploadImage
 );

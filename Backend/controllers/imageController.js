@@ -12,17 +12,28 @@ const {
   incrementStat,
   softDeleteImage,
 } = require('../services/imageService');
-const { deleteCloudinaryImage } = require('../config/cloudinary');
+const { cloudinary, deleteCloudinaryImage } = require('../config/cloudinary');
 const { validatePrice } = require('../utils/priceCalculator');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
 //const logger = require('../utils/logger');
+
+// Upload image
+const uploadToCloudinary = (buffer, options) =>
+  new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(options, (error, result) => {
+      if (error) return reject(error);
+      resolve(result);
+    });
+    stream.end(buffer);
+  });
+
 
 //  GET /api/images
 const getImages = async (req, res) => {
   try {
     const { category, search, minPrice, maxPrice, limit, startAfter } = req.query;
 
-    // 1. Input validation
+    // 1. Check validation
     if (category && !IMAGE_CATEGORIES.includes(category)) {
       return sendError(res, 400, `Invalid category. Valid options: ${IMAGE_CATEGORIES.join(', ')}`);
     }
@@ -39,7 +50,7 @@ const getImages = async (req, res) => {
       return sendError(res, 400, 'minPrice cannot be greater than maxPrice');
     }
 
-    // 2. Fetch from Firestore
+    // 2. Fetch from DB
     const images = await getApprovedImages({
       category: category || null,
       search: search || null,
@@ -49,7 +60,7 @@ const getImages = async (req, res) => {
       startAfter: startAfter || null,
     });
 
-    // 3. Shape response to match API spec
+    // 3. Mapping response
     const responseImages = images.map(({ originalPublicId, watermarkPublicId, searchKeywords, ...img }) => ({
       imageId:      img.imageId,
       imageName:    img.imageName,
@@ -66,7 +77,7 @@ const getImages = async (req, res) => {
       isFeatured:   img.isFeatured,
     }));
 
-    // 4. Increment view count in background
+    // 4. Increment view count
     //logger.info(`[GET /images] Returned ${responseImages.length} images | filters: ${JSON.stringify({ category, search, minPrice, maxPrice })}`);
     console.log(`[GET /images] Returned ${responseImages.length} images | filters: ${JSON.stringify({ category, search, minPrice, maxPrice })}`);
 
@@ -90,8 +101,10 @@ const getImages = async (req, res) => {
 
 //  POST /api/images/upload
 const uploadImage = async (req, res) => {
+  let watermarkPublicId = null;
+  let originalPublicId  = null;
   try {
-    // 1. Check file was uploaded
+    // 1. Check the file
     if (!req.file) {
       return sendError(res, 400, 'No image file provided. Include a file field in multipart/form-data.');
     }
@@ -130,8 +143,48 @@ const uploadImage = async (req, res) => {
         parsedTags = [];
       }
     }
+    
+    // 6. Upload watermarked preview
+    const baseName = req.file.originalname.replace(/\.[^/.]+$/, '');
+    const buffer   = req.file.buffer;
 
-    // 6. Build Firestore document
+    console.log(`[UPLOAD] Uploading watermarked preview for "${imageName}"...`);
+
+    const watermarkResult = await uploadToCloudinary(buffer, {
+      folder:          'image-store/watermarked',
+      public_id:       `wm_${Date.now()}_${baseName}`,
+      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+      transformation: [
+        { width: 1200, height: 900, crop: 'limit', quality: 'auto:good' },
+        {
+          overlay: { font_family: 'Arial', font_size: 55, font_weight: 'bold', text: '© ImageStore' },
+          color: '#FFFFFF', opacity: 45, gravity: 'center', angle: -30, y: -20,
+        },
+        {
+          overlay: { font_family: 'Arial', font_size: 45, font_weight: 'bold', text: '© ImageStore' },
+          color: '#FFFFFF', opacity: 30, gravity: 'south_east', angle: -30, x: 20, y: 20,
+        },
+      ],
+    });
+
+    watermarkPublicId = watermarkResult.public_id;
+    const watermarkUrl = watermarkResult.secure_url;
+    console.log(`[UPLOAD] ✅ Watermarked preview uploaded: ${watermarkPublicId}`);
+
+    // 7. Upload original one
+    console.log(`[UPLOAD] Uploading original for "${imageName}"...`);
+
+    const originalResult = await uploadToCloudinary(buffer, {
+      folder:          'image-store/originals',
+      public_id:       `orig_${Date.now()}_${baseName}`,
+      allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'tiff'],
+      type:            'private',
+    });
+
+    originalPublicId = originalResult.public_id;
+    console.log(`[UPLOAD] ✅ Original uploaded (private): ${originalPublicId}`);
+
+    // 8. Build DB document
     const imageDoc = createImageDocument({
       sellerId:          req.user.uid,
       sellerName:        req.user.username,
@@ -140,9 +193,9 @@ const uploadImage = async (req, res) => {
       price:             priceNum,
       category,
       tags:              parsedTags,
-      watermarkUrl:      req.file.path,         // Public Cloudinary URL
-      watermarkPublicId: req.file.filename,     // For deletion
-      originalPublicId:  null,                  // Optional: set if you also upload original separately
+      watermarkUrl,         
+      watermarkPublicId,     
+      originalPublicId,                  
       metadata: {
         width:  req.file.width  || null,
         height: req.file.height || null,
@@ -151,13 +204,13 @@ const uploadImage = async (req, res) => {
       },
     });
 
-    // 7. Save to Firestore
+    // 9. Save to DB
     const imageId = await createImage(imageDoc);
 
     //logger.info(`[UPLOAD] Image "${imageName}" uploaded by ${req.user.username} (${req.user.uid}) → ID: ${imageId}`);
     console.log(`[UPLOAD] Image "${imageName}" uploaded by ${req.user.username} (${req.user.uid}) → ID: ${imageId}`);
 
-    // 8. Respond
+    // 10. Return
     return sendSuccess(res, 201, 'Image uploaded successfully. Pending admin review.', {
       message:      'Image uploaded',
       imageId,
@@ -169,9 +222,12 @@ const uploadImage = async (req, res) => {
   } catch (error) {
     //logger.error('uploadImage error:', error);
     console.error('uploadImage error:', error);
-    // Try to clean up Cloudinary file if something went wrong after upload
-    if (req.file?.filename) {
-      await deleteCloudinaryImage(req.file.filename).catch(() => {});
+    // Clean up Cloudinary file if something went wrong after upload
+    if (watermarkPublicId) {
+      await deleteCloudinaryImage(watermarkPublicId).catch(() => {});
+    }
+    if (originalPublicId) {
+      await deleteCloudinaryImage(originalPublicId, 'private').catch(() => {});
     }
     return sendError(res, 500, 'Image upload failed. Please try again.');
   }
@@ -182,7 +238,7 @@ const getImageDetail = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. Fetch from Firestore
+    // 1. Fetch from DB
     const image = await getImageById(id);
 
     if (!image) {
@@ -202,7 +258,7 @@ const getImageDetail = async (req, res) => {
     // 3. Increment view count (background, non-blocking)
     incrementStat(id, 'views').catch(() => {});
 
-    // 4. Shape response to match API spec
+    // 4. Mapping response
     const response = {
       imageId:      image.imageId,
       imageName:    image.imageName,
@@ -216,11 +272,11 @@ const getImageDetail = async (req, res) => {
       status:       image.status,
       uploadDate:   image.uploadDate,
       metadata:     image.metadata,
-      views:        image.views + 1,   // Include current view
+      views:        image.views + 1,   
       likes:        image.likes,
       purchases:    image.purchases,
       isFeatured:   image.isFeatured,
-      // Only show adminNote to seller and admin
+
       ...(req.user && (req.user.uid === image.sellerId || req.user.role === 'admin')
         ? { adminNote: image.adminNote }
         : {}),
@@ -262,7 +318,7 @@ const deleteImage = async (req, res) => {
       return sendError(res, 403, 'Access denied. You can only delete your own images.');
     }
 
-    // 4. Delete from Cloudinary
+    // 4. Delete from Cloud
     if (image.watermarkPublicId) {
       await deleteCloudinaryImage(image.watermarkPublicId).catch((e) => {
         //logger.warn(`Could not delete watermark from Cloudinary [${image.watermarkPublicId}]:`, e.message);
@@ -270,7 +326,6 @@ const deleteImage = async (req, res) => {
       });
     }
 
-    // Delete original (private resource)
     if (image.originalPublicId) {
       await deleteCloudinaryImage(image.originalPublicId, 'private').catch((e) => {
         //logger.warn(`Could not delete original from Cloudinary [${image.originalPublicId}]:`, e.message);
@@ -278,7 +333,7 @@ const deleteImage = async (req, res) => {
       });
     }
 
-    // 5. Soft-delete in Firestore
+    // 5. Soft-delete in DB
     await softDeleteImage(id);
 
     //logger.info(`[DELETE /images/${id}] Deleted by ${req.user.username} (${req.user.role})`);
