@@ -6,13 +6,13 @@ const style = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --dark: #1c2333;
-    --darker: #151c2b;
-    --mid: #253047;
-    --light: #f0f2f5;
+    --dark: #1a1a1a;
+    --darker: #111111;
+    --mid: #2e2e2e;
+    --light: #f5f5f5;
     --white: #ffffff;
-    --accent: #4fc3c3;
-    --muted: #8a9ab5;
+    --accent: #e0e0e0;
+    --muted: #888888;
     --border: rgba(255,255,255,0.08);
     --input-bg: rgba(255,255,255,0.04);
   }
@@ -32,9 +32,8 @@ const style = `
     background: var(--dark);
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 0 52px;
+    justify-content: space-between;
+    padding: 52px 52px 44px;
     position: relative;
     overflow: hidden;
   }
@@ -60,14 +59,8 @@ const style = `
   }
 
   .brand {
-    position: absolute;
-    top: 52px;
-    left: 50%;
-    transform: translateX(-50%);
+    position: relative;
     z-index: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
   }
 
   .brand-logo {
@@ -99,11 +92,6 @@ const style = `
   .left-center {
     position: relative;
     z-index: 1;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
   }
 
   .left-headline {
@@ -156,12 +144,7 @@ const style = `
   }
 
   .left-footer {
-    position: absolute;
-    bottom: 44px;
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-    z-index: 1;
+    position: relative; z-index: 1;
     font-size: 12px;
     color: rgba(255,255,255,0.2);
     font-weight: 300;
@@ -341,8 +324,8 @@ const style = `
   }
 
   .submit-btn:hover {
-    background: var(--mid);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    background: #333;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
     transform: translateY(-1px);
   }
 
