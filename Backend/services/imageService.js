@@ -121,7 +121,7 @@ const incrementStat = async (imageId, field, amount = 1) => {
     });
 };
 
-// Soft delete
+// Delete image
 const softDeleteImage = async (imageId) => {
   await db()
     .collection(COL)
