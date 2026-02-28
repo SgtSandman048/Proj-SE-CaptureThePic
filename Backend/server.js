@@ -7,8 +7,9 @@ require('dotenv').config();
 const app = express();
 
 const authRoutes = require('./routes/authRoutes');
+const { sendError } = require('./utils/apiResponse');
 //const imageRoutes = require('./routes/imageRoutes');
-//const orderRoutes = require('./routes/orderRoutes');
+const orderRoutes = require('./routes/orderRoutes');
 //const adminRoutes = require('./routes/adminRoutes');
 
 const PORT = process.env.PORT || 8080;
@@ -27,7 +28,7 @@ app.get('/', (req, res) => {
 // Routes Call
 app.use('/api/auth', authRoutes);
 //app.use('/api/images', imageRoutes);
-//app.use('/api/orders', orderRoutes);
+app.use('/api/orders', orderRoutes);
 //app.use('/api/admin', adminRoutes);
 
 // Error Handler
