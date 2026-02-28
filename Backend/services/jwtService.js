@@ -9,9 +9,11 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '30d';
 
+const { v4: uuidv4 } = require('uuid');
+
 if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
   //logger.error('❌ JWT secrets are not set in environment variables');
-  console.log('JWT Error');
+  console.error('[Error] 401: Failed to call JWT service');
   process.exit(1);
 }
 
@@ -23,6 +25,7 @@ const generateAccessToken = (user) => {
       email: user.email,
       username: user.username,
       role: user.role,
+      jti: uuidv4(),
     },
     JWT_SECRET,
     {

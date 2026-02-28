@@ -5,6 +5,7 @@
 const bcrypt = require('bcrypt');
 const { validationResult } = require('express-validator');
 
+//const redisClient = require('../config/redis');
 const { createUserDocument, sanitizeUser, ROLES } = require('../models/userModel');
 const { createUser, getUserById, getUserByEmail, isUsernameTaken, updateUser, updateLastLogin, } = require('../services/userService');
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../services/jwtService');
@@ -208,12 +209,19 @@ const logout = async (req, res) => {
       sameSite: 'strict',
     });
 
+    /*const { jti, exp } = req.user;           // jti & exp come from decoded token
+    const ttl = exp - Math.floor(Date.now() / 1000);  // seconds remaining
+
+    if (jti && ttl > 0) {
+      await redisClient.setEx(`blacklist:${jti}`, ttl, 'true');
+    }*/
+
     //logger.info(`User logged out: ${req.user?.uid}`);
-    console.log(`[!] User ${user.username} (${user.role}) has logged out from server`);
+    console.log(`[!] User ${req.user.username} (${req.user.role}) has logged out from server`);
     return sendSuccess(res, 200, 'Logged out successfully');
   } catch (error) {
     //logger.error('Logout error:', error);
-    return sendError(res, 500, 'Logout failed', error);
+    return sendError(res, 500, 'Logout failed');
   }
 };
 

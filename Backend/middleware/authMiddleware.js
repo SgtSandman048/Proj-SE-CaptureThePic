@@ -1,5 +1,6 @@
 // middlewares/authMiddleware.js
 
+//const redisClient = require('../config/redis');
 const { verifyAccessToken } = require('../services/jwtService');
 const { getUserById } = require('../services/userService');
 const { sendError } = require('../utils/apiResponse');
@@ -33,6 +34,11 @@ const authenticate = async (req, res, next) => {
       }
       throw err;
     }
+
+    /*const isBlacklisted = await redisClient.get(`blacklist:${decoded.jti}`);
+    if (isBlacklisted) {
+      return sendError(res, 401, 'Token has been invalidated. Please log in again.');
+    }*/
 
     // 3. Fetch fresh user from Firestore to ensure account is still active
     //    (Cached in a 60-second window to reduce DB reads on high-traffic routes)
