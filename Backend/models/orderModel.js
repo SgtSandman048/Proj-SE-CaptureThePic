@@ -21,7 +21,7 @@ const isValidTransition = (from, to) => {
     pending:   ['checking'],
     checking:  ['completed', 'rejected'],
     completed: [],
-    rejected:  [],
+    rejected:  ['checking'],
   };
   return (allowed[from] || []).includes(to);
 };

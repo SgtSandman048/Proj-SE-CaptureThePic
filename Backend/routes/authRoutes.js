@@ -46,8 +46,8 @@ const registerValidators = [
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
 
   body('role')
-    .isIn(['buyer', 'seller'])
-    .withMessage('Role must be either "buyer" or "seller"'),
+    .isIn([/*'buyer', 'seller',*/ 'user'])
+    .withMessage('Role must be either "user"'),
 ];
 
 const loginValidators = [

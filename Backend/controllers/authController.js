@@ -26,8 +26,8 @@ const register = async (req, res) => {
 
     const { username, email, pass, role } = req.body;
 
-    // 2. Validate role — only 'buyer' and 'seller' are self-registrable
-    const allowedRoles = [ROLES.BUYER, ROLES.SELLER];
+    // 2. Validate role — only 'user' are self-registrable
+    const allowedRoles = [ROLES.USER];
     if (!allowedRoles.includes(role)) {
       return sendError(res, 400, `Role must be one of: ${allowedRoles.join(', ')}`);
     }

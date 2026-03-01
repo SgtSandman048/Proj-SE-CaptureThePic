@@ -1,250 +1,257 @@
-/**
- * controllers/adminController.js
+// controllers/adminController.js
+/* ─────────────────────────────────────────────────────────
+ * Admin Operations — thin controller, all logic in adminService.
  *
- * GET  /api/admin/dashboard           — Stats overview
- * GET  /api/admin/users               — All users list
- * PUT  /api/admin/users/:id/status    — Activate / deactivate user
- * PUT  /api/admin/users/:id/role      — Change user role
- * GET  /api/admin/images/pending      — Images awaiting approval
- * PUT  /api/admin/images/:id/approve  — Approve image
- * PUT  /api/admin/images/:id/reject   — Reject image with note
- * GET  /api/admin/orders/pending      — Orders awaiting slip verification
- * PUT  /api/admin/orders/:id/verify   — Complete / reject order
+ *  GET   /api/admin/orders          → getOrders      (list "checking" orders)
+ *  PATCH /api/admin/orders/:id/verify → verifyOrder  (approve or reject)
+ *
+ * Also includes image moderation endpoints used by adminRoutes:
+ *  GET  /api/admin/images/pending   → getPendingImages
+ *  PUT  /api/admin/images/:id/approve
+ *  PUT  /api/admin/images/:id/reject
+ *  GET  /api/admin/dashboard
  */
-const { validationResult } = require('express-validator');
-const { getAllUsers, getUserById, updateUser, deactivateUser } = require('../services/userService');
-const { getPendingImages, getImageById, updateImage } = require('../services/imageService');
-const {
-  getPendingVerificationOrders,
-  getOrderById,
-  updateOrder,
-} = require('../services/orderService');
-const { ORDER_STATUS } = require('../models/orderModel');
+const { db: getDb }   = require('../config/firebase');
+const { getCheckingOrders, verifyOrder, getAllOrders } = require('../services/adminService');
+const { getImageById, updateImage, getPendingImages } = require('../services/imageService');
 const { IMAGE_STATUS } = require('../models/imageModel');
-const { ROLES } = require('../models/userModel');
-const { calculateSellerNet } = require('../utils/priceCalculator');
-const { FieldValue } = require('../config/firebase');
-const { db } = require('../config/firebase');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
-const logger = require('../utils/logger');
 
-// ── Dashboard Stats ────────────────────────────────────────────────────────
-const getDashboard = async (req, res) => {
+const db = getDb();
+
+// ════════════════════════════════════════════════════════════════════════════
+//  GET /api/admin/orders
+//  Fetch all orders with status "checking" — awaiting admin verification
+// ════════════════════════════════════════════════════════════════════════════
+/**
+ * Optional query params:
+ *   ?status=checking|pending|completed|rejected  (default: "checking")
+ *   ?all=true                                    (return all statuses)
+ *
+ * Response 200:
+ * {
+ *   "orders": [
+ *     {
+ *       "orderId": "id",
+ *       "userId":  "id",
+ *       "slipUrl": "url",
+ *       "status":  "checking",
+ *       "imageName": "...",
+ *       "totalAmount": 374.5,
+ *       "createdAt": "ISO",
+ *       "updatedAt": "ISO"
+ *     }
+ *   ],
+ *   "count": 1
+ * }
+ */
+const getOrders = async (req, res) => {
   try {
-    const [usersSnap, imagesSnap, ordersSnap] = await Promise.all([
-      db().collection('users').count().get(),
-      db().collection('images').count().get(),
-      db().collection('orders').where('status', '==', ORDER_STATUS.COMPLETED).count().get(),
-    ]);
+    const { all, status } = req.query;
 
-    const revenueSnap = await db()
-      .collection('orders')
-      .where('status', '==', ORDER_STATUS.COMPLETED)
-      .get();
+    let orders;
 
-    const totalRevenue = revenueSnap.docs.reduce((sum, d) => sum + (d.data().pricing?.total || 0), 0);
-
-    return sendSuccess(res, 200, 'Dashboard stats', {
-      totalUsers: usersSnap.data().count,
-      totalImages: imagesSnap.data().count,
-      completedOrders: ordersSnap.data().count,
-      totalRevenue: totalRevenue.toFixed(2),
-    });
-  } catch (error) {
-    logger.error('getDashboard error:', error);
-    return sendError(res, 500, 'Failed to load dashboard');
-  }
-};
-
-// ── User Management ────────────────────────────────────────────────────────
-const listUsers = async (req, res) => {
-  try {
-    const { limit, startAfter, role } = req.query;
-    const users = await getAllUsers({ limit: parseInt(limit) || 20, startAfter, role });
-    return sendSuccess(res, 200, 'Users fetched', { users, count: users.length });
-  } catch (error) {
-    logger.error('listUsers error:', error);
-    return sendError(res, 500, 'Failed to fetch users');
-  }
-};
-
-const setUserStatus = async (req, res) => {
-  try {
-    const { isActive } = req.body;
-    if (typeof isActive !== 'boolean') return sendError(res, 400, 'isActive must be boolean');
-
-    const user = await getUserById(req.params.id);
-    if (!user) return sendError(res, 404, 'User not found');
-
-    await updateUser(req.params.id, { isActive });
-
-    // Also disable/enable in Firebase Auth
-    const { auth } = require('../config/firebase');
-    await auth().updateUser(req.params.id, { disabled: !isActive });
-
-    logger.info(`Admin ${req.user.uid} set user ${req.params.id} isActive=${isActive}`);
-    return sendSuccess(res, 200, `User ${isActive ? 'activated' : 'deactivated'} successfully`);
-  } catch (error) {
-    logger.error('setUserStatus error:', error);
-    return sendError(res, 500, 'Failed to update user status');
-  }
-};
-
-const setUserRole = async (req, res) => {
-  try {
-    const { role } = req.body;
-    if (!Object.values(ROLES).includes(role)) {
-      return sendError(res, 400, `Invalid role. Must be: ${Object.values(ROLES).join(', ')}`);
+    if (all === 'true') {
+      // Return ALL orders (any status) — useful for admin dashboard table
+      orders = await getAllOrders({ statusFilter: null, limit: parseInt(req.query.limit) || 50 });
+    } else if (status && status !== 'pending') {
+      // Specific status filter from query param
+      orders = await getAllOrders({ statusFilter: status, limit: parseInt(req.query.limit) || 50 });
+    } else {
+      // Default: return only "checking" orders (the primary admin task)
+      orders = await getCheckingOrders();
     }
 
-    await updateUser(req.params.id, { role });
-    logger.info(`Admin ${req.user.uid} changed role of ${req.params.id} to ${role}`);
-    return sendSuccess(res, 200, 'User role updated');
+    // Shape response to match API spec
+    const shaped = orders.map((o) => ({
+      orderId:     o.orderId,
+      userId:      o.userId,
+      imageId:     o.imageId,
+      imageName:   o.imageName,
+      totalAmount: o.totalAmount,
+      slipUrl:     o.slipUrl,
+      status:      o.status,
+      createdAt:   o.createdAt,
+      updatedAt:   o.updatedAt,
+      adminNote:   o.adminNote   || null,
+      verifiedBy:  o.verifiedBy  || null,
+      completedAt: o.completedAt || null,
+    }));
+
+    console.log(`[GET /admin/orders] status=${status || 'checking'} returned ${shaped.length} orders`);
+
+    return sendSuccess(res, 200, 'Orders fetched successfully', {
+      orders: shaped,
+      count:  shaped.length,
+    });
   } catch (error) {
-    logger.error('setUserRole error:', error);
-    return sendError(res, 500, 'Failed to update role');
+    console.error('[getOrders]', error);
+    return sendError(res, 500, 'Failed to fetch orders');
   }
 };
 
-// ── Image Moderation ───────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+//  PATCH /api/admin/orders/:id/verify
+//  Approve or reject a payment slip — changes order status
+// ════════════════════════════════════════════════════════════════════════════
+/**
+ * Request body:
+ * {
+ *   "status": "completed" | "rejected",
+ *   "note":   "optional reason (required for rejection)"
+ * }
+ *
+ * Response 200:
+ * {
+ *   "message": "Order status updated",
+ *   "orderId": "id",
+ *   "status":  "completed"
+ * }
+ */
+const verifyOrderHandler = async (req, res) => {
+  try {
+    const { id }             = req.params;
+    const { status, note }   = req.body;
+
+    // ── 1. Validate status field is present ───────────────────────────────
+    if (!status) {
+      return sendError(res, 400, 'status is required. Use "completed" or "rejected"');
+    }
+
+    // ── 2. Validate status is one of the two allowed values ───────────────
+    if (!['completed', 'rejected'].includes(status)) {
+      return sendError(res, 400, 'status must be "completed" or "rejected"');
+    }
+
+    // ── 3. Require note when rejecting ────────────────────────────────────
+    if (status === 'rejected' && (!note || !note.trim())) {
+      return sendError(res, 400, 'note is required when rejecting an order');
+    }
+
+    // ── 4. Delegate to service (state machine + Firestore update) ─────────
+    await verifyOrder(id, status, req.user.uid, note?.trim() || null);
+
+    console.log(`[PATCH /admin/orders/${id}/verify] status→${status} by admin:${req.user.uid}`);
+
+    // ── 5. Respond with API spec shape ────────────────────────────────────
+    return sendSuccess(res, 200, 'Order status updated', {
+      message: 'Order status updated',
+      orderId: id,
+      status,
+    });
+
+  } catch (err) {
+    if (err.message === 'ORDER_NOT_FOUND') {
+      return sendError(res, 404, 'Order not found');
+    }
+    if (err.message === 'INVALID_STATUS') {
+      return sendError(res, 400, 'status must be "completed" or "rejected"');
+    }
+    if (err.message === 'INVALID_TRANSITION') {
+      return sendError(res, 409,
+        'Cannot verify this order. Only orders with status "checking" can be approved or rejected.'
+      );
+    }
+    console.error('[verifyOrderHandler]', err);
+    return sendError(res, 500, 'Failed to update order status');
+  }
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Image Moderation
+// ════════════════════════════════════════════════════════════════════════════
+
+// GET /api/admin/images/pending
 const getPendingImagesList = async (req, res) => {
   try {
     const images = await getPendingImages(parseInt(req.query.limit) || 50);
     return sendSuccess(res, 200, 'Pending images fetched', { images, count: images.length });
   } catch (error) {
-    logger.error('getPendingImagesList error:', error);
+    console.error('[getPendingImagesList]', error);
     return sendError(res, 500, 'Failed to fetch pending images');
   }
 };
 
+// PUT /api/admin/images/:id/approve
 const approveImage = async (req, res) => {
   try {
     const image = await getImageById(req.params.id);
     if (!image) return sendError(res, 404, 'Image not found');
 
+    if (![IMAGE_STATUS.PENDING, IMAGE_STATUS.REJECTED].includes(image.status)) {
+      return sendError(res, 409, `Cannot approve image with status "${image.status}"`);
+    }
+
     await updateImage(req.params.id, {
-      status: IMAGE_STATUS.APPROVED,
-      approvedAt: FieldValue.serverTimestamp(),
-      adminNote: null,
+      status:     IMAGE_STATUS.APPROVED,
+      approvedAt: new Date().toISOString(),
+      adminNote:  null,
     });
 
-    logger.info(`Image approved: ${req.params.id} by admin ${req.user.uid}`);
+    console.log(`[approveImage] Image approved: ${req.params.id} by admin:${req.user.uid}`);
     return sendSuccess(res, 200, 'Image approved and now live');
   } catch (error) {
-    logger.error('approveImage error:', error);
+    console.error('[approveImage]', error);
     return sendError(res, 500, 'Failed to approve image');
   }
 };
 
+// PUT /api/admin/images/:id/reject
 const rejectImage = async (req, res) => {
   try {
     const { reason } = req.body;
-    if (!reason) return sendError(res, 400, 'Rejection reason is required');
+    if (!reason?.trim()) return sendError(res, 400, 'reason is required');
 
     const image = await getImageById(req.params.id);
     if (!image) return sendError(res, 404, 'Image not found');
 
     await updateImage(req.params.id, {
-      status: IMAGE_STATUS.REJECTED,
-      adminNote: reason,
+      status:    IMAGE_STATUS.REJECTED,
+      adminNote: reason.trim(),
     });
 
-    logger.info(`Image rejected: ${req.params.id} — ${reason}`);
-    return sendSuccess(res, 200, 'Image rejected');
+    return sendSuccess(res, 200, 'Image rejected', { reason: reason.trim() });
   } catch (error) {
-    logger.error('rejectImage error:', error);
+    console.error('[rejectImage]', error);
     return sendError(res, 500, 'Failed to reject image');
   }
 };
 
-// ── Order / Slip Verification ──────────────────────────────────────────────
-const getPendingOrdersList = async (req, res) => {
+// ════════════════════════════════════════════════════════════════════════════
+//  Dashboard
+// ════════════════════════════════════════════════════════════════════════════
+const getDashboard = async (req, res) => {
   try {
-    const orders = await getPendingVerificationOrders();
-    return sendSuccess(res, 200, 'Pending orders fetched', { orders, count: orders.length });
+    const [usersSnap, approvedSnap, pendingImgSnap, completedSnap, checkingSnap] = await Promise.all([
+      db.collection('users').count().get(),
+      db.collection('images').where('status', '==', 'approved').count().get(),
+      db.collection('images').where('status', '==', 'pending').count().get(),
+      db.collection('orders').where('status', '==', 'completed').count().get(),
+      db.collection('orders').where('status', '==', 'checking').count().get(),
+    ]);
+
+    const completedDocs = await db.collection('orders').where('status', '==', 'completed').get();
+    const totalRevenue  = completedDocs.docs.reduce((sum, d) => sum + (d.data().totalAmount || 0), 0);
+
+    return sendSuccess(res, 200, 'Dashboard stats', {
+      totalUsers:          usersSnap.data().count,
+      approvedImages:      approvedSnap.data().count,
+      pendingImages:       pendingImgSnap.data().count,
+      completedOrders:     completedSnap.data().count,
+      pendingVerification: checkingSnap.data().count,
+      totalRevenue:        parseFloat(totalRevenue.toFixed(2)),
+    });
   } catch (error) {
-    logger.error('getPendingOrdersList error:', error);
-    return sendError(res, 500, 'Failed to fetch pending orders');
+    console.error('[getDashboard]', error);
+    return sendError(res, 500, 'Failed to load dashboard');
   }
 };
-
-const verifyOrder = async (req, res) => {
-  try {
-    const { action, note } = req.body; // action: 'approve' | 'reject'
-    if (!['approve', 'reject'].includes(action)) {
-      return sendError(res, 400, 'Action must be "approve" or "reject"');
-    }
-
-    const order = await getOrderById(req.params.id);
-    if (!order) return sendError(res, 404, 'Order not found');
-
-    if (order.status !== ORDER_STATUS.SLIP_UPLOADED) {
-      return sendError(res, 400, 'Order is not awaiting verification');
-    }
-
-    if (action === 'approve') {
-      // Fetch image to record revenue on seller profile
-      const image = await getImageById(order.imageId);
-      const netAmount = image ? calculateSellerNet(order.pricing.total).sellerNet : 0;
-
-      await updateOrder(req.params.id, {
-        status: ORDER_STATUS.COMPLETED,
-        verifiedBy: req.user.uid,
-        completedAt: FieldValue.serverTimestamp(),
-        adminNote: note || null,
-      });
-
-      // Update image purchase stats
-      if (image) {
-        const { updateImage: upd, incrementImageStat } = require('../services/imageService');
-        await incrementImageStat(order.imageId, 'purchases');
-        await incrementImageStat(order.imageId, 'revenue', order.pricing.total);
-      }
-
-      // Add to buyer's purchased list
-      const { updateUser: upUser } = require('../services/userService');
-      await upUser(order.buyerId, {
-        purchasedImages: FieldValue.arrayUnion(order.imageId),
-      });
-
-      // Update seller revenue
-      const sellerDoc = await getUserById(order.sellerId);
-      if (sellerDoc?.sellerProfile) {
-        await updateUser(order.sellerId, {
-          'sellerProfile.totalSales': FieldValue.increment(1),
-          'sellerProfile.totalRevenue': FieldValue.increment(netAmount),
-        });
-      }
-
-      logger.info(`Order COMPLETED: ${req.params.id}`);
-      return sendSuccess(res, 200, 'Order approved. Buyer can now download.');
-    } else {
-      await updateOrder(req.params.id, {
-        status: ORDER_STATUS.REJECTED,
-        verifiedBy: req.user.uid,
-        adminNote: note || 'Slip rejected — please re-upload',
-      });
-
-      logger.info(`Order REJECTED: ${req.params.id}`);
-      return sendSuccess(res, 200, 'Order rejected. Buyer notified to re-upload slip.');
-    }
-  } catch (error) {
-    logger.error('verifyOrder error:', error);
-    return sendError(res, 500, 'Failed to verify order');
-  }
-};
-
-// Missing import fix
-//const { getUserById } = require('../services/userService');
 
 module.exports = {
-  getDashboard,
-  listUsers,
-  setUserStatus,
-  setUserRole,
+  getOrders,
+  verifyOrderHandler,
   getPendingImagesList,
   approveImage,
   rejectImage,
-  getPendingOrdersList,
-  verifyOrder,
+  getDashboard,
 };

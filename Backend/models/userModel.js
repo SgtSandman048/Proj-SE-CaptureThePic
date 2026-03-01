@@ -3,8 +3,9 @@
 const { FieldValue, Timestamp } = require('../config/firebase');
 
 const ROLES = Object.freeze({
-  BUYER: 'buyer',
-  SELLER: 'seller',
+  //BUYER: 'buyer',
+  //SELLER: 'seller',
+  USER: 'user',
   ADMIN: 'admin',
 });
 
@@ -20,7 +21,7 @@ const createUserDocument = (uid, username, email, role, hashedPassword) => ({
   bio: null,
 
   // Seller-specific fields (null for buyers)
-  sellerProfile: role === ROLES.SELLER ? {
+  sellerProfile: role === ROLES.USER ? {
     totalSales: 0,
     totalRevenue: 0,
     rating: 0,

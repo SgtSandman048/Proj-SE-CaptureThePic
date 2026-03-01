@@ -37,11 +37,12 @@ const requireRole = (...roles) => (req, res, next) => {
 /** Admin only */
 const requireAdmin = requireRole(ROLES.ADMIN);
 
+const requireUser = requireRole(ROLES.USER, ROLES.ADMIN);
 /** Seller or Admin — Admins can also upload/manage images */
-const requireSeller = requireRole(ROLES.SELLER, ROLES.ADMIN);
+//const requireSeller = requireRole(ROLES.SELLER, ROLES.ADMIN);
 
 /** Buyer or Admin */
-const requireBuyer = requireRole(ROLES.BUYER, ROLES.ADMIN);
+//const requireBuyer = requireRole(ROLES.BUYER, ROLES.ADMIN);
 
 /**
  * requireOwnerOrAdmin
@@ -74,4 +75,4 @@ const requireOwnerOrAdmin = (ownerUidField = 'sellerId') => (req, res, next) => 
   next();
 };
 
-module.exports = { requireRole, requireAdmin, requireSeller, requireBuyer, requireOwnerOrAdmin };
+module.exports = { requireRole, requireAdmin, requireUser, /*requireSeller, requireBuyer,*/ requireOwnerOrAdmin };

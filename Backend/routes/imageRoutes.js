@@ -14,10 +14,11 @@ const {
 } = require('../controllers/imageController');
 
 const { authenticate, optionalAuthenticate } = require('../middleware/authMiddleware');
-const { requireSeller } = require('../middleware/roleMiddleware');
+const { /*requireSeller,*/ requireUser } = require('../middleware/roleMiddleware');
 const { uploadWatermarked, uploadOriginal } = require('../config/cloudinary');
 const { IMAGE_CATEGORIES } = require('../models/imageModel');
 
+// Store image files before uploading
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 },   // 50MB
@@ -56,13 +57,14 @@ router.get('/', optionalAuthenticate, getImages);
 
 router.post('/upload',
   authenticate,
-  requireSeller,
+  requireUser,
+  //requireSeller,
   upload.single('file'),  
   uploadValidators,
   uploadImage
 );
 
-router.get('/my', authenticate, requireSeller, getMyImages);
+router.get('/my', authenticate, requireUser, getMyImages);
 
 router.get('/:id', optionalAuthenticate, getImageDetail);
 
