@@ -1,0 +1,201 @@
+/* --- 1. พื้นฐานและโครงสร้างหลัก --- */
+/* แก้ไขส่วน main-content เพื่อให้ Header ชิดขอบบนสุดและซ้ายสุดของพื้นที่เนื้อหา */
+.main-content { 
+    flex: 1; 
+    overflow-y: auto; 
+    padding: 0; /* ต้องเป็น 0 เพื่อให้แถบดำชิดขอบ */
+    background: #e0e0e0; 
+    display: flex;
+    flex-direction: column;
+}
+
+.black-top-bar {
+    background-color: #111111; 
+    padding: 20px 30px; /* ลด padding ลงจาก 50px เพื่อให้ดูไม่หนาเกินไป แต่ยังกินพื้นที่เต็มความกว้าง */
+    width: 100%;
+    box-sizing: border-box;
+    position: sticky; 
+    top: 0;
+    z-index: 100;
+}
+
+body, html { 
+    margin: 0; 
+    padding: 0; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    background: #f0f0f0; 
+}
+
+.app-container { 
+    display: flex; 
+    height: 100vh; 
+}
+
+/* --- 2. Sidebar และ Menu --- */
+.sidebar { 
+    width: 240px; 
+    background: #1a1a2e; 
+    color: white; 
+    display: flex; 
+    flex-direction: column; 
+    padding: 20px; 
+    overflow-y: auto; /* ให้เลื่อนเมนูขึ้นลงได้ */
+}
+
+.nav-links a { 
+    display: block; 
+    color: #ccc; 
+    text-decoration: none; 
+    padding: 15px 10px; 
+    border-bottom: 1px solid #333; 
+    transition: 0.3s;
+}
+
+.nav-links a.active, .nav-links a:hover { 
+    color: white; 
+    background: #252545;
+}
+
+/* Preference Dropdown ใน Sidebar */
+.pref-submenu {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out;
+    background: #252545;
+    border-radius: 8px;
+    margin-top: 5px;
+}
+.menu-header {
+    padding: 10px 0 30px 10px; /* เพิ่มพื้นที่ด้านล่าง (30px) ของปุ่มสามเส้น */
+    cursor: pointer;
+    color: white;
+    font-size: 30px;
+}
+.tag-group { 
+    border-bottom: 1px solid #333; 
+    padding: 10px 10px; /* เพิ่ม Padding จากเดิม 5px เป็น 10px เพื่อให้ดูโปร่งขึ้น */
+    margin-bottom: 5px; /* เพิ่มระยะห่างระหว่างกลุ่มหมวดหมู่ */
+}
+.tag-header { 
+    cursor: pointer; 
+    color: #fff; 
+    padding: 12px 0; /* เพิ่ม Padding บน-ล่างให้ตัวอักษรไม่ชิดเส้นขอบ */
+    font-size: 14px; 
+    font-weight: bold; 
+}.tag-header:hover { color: #4db8ff; }
+
+.subtags { 
+    display: none; 
+    flex-direction: column; 
+    padding: 5px 0 10px 15px; 
+    gap: 8px; 
+}
+
+.subtags label { 
+    font-size: 12px; 
+    color: #ccc; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+}
+
+/* คลาสช่วยแสดงผล Subtags (เรียกใช้ผ่าน JS) */
+.show-sub { display: flex !important; }
+
+/* ข้อมูลผู้ใช้ด้านล่าง */
+.user-account { margin-top: auto; padding-top: 20px; border-top: 1px solid #333; }
+.profile { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+.profile img { width: 35px; height: 35px; border-radius: 50%; background: #ccc; }
+.settings { color: #888; text-decoration: none; font-size: 12px; }
+
+/* --- 3. Main Content และ Top Bar --- */
+
+
+.top-bar-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.search-container {
+    display: flex;
+    background: white;
+    padding: 8px 15px;
+    border-radius: 4px; 
+    width: 60%;
+}
+
+.search-container input { border: none; flex: 1; outline: none; }
+.search-btn { background: none; border: none; cursor: pointer; }
+
+.logo { color: white; font-size: 26px; font-weight: bold; font-style: italic; }
+
+/* --- 4. Gallery Layout (Masonry Style เหมือนในรูป) --- */
+.popular { padding: 20px; }
+
+/* แก้ไขส่วน Gallery */
+.image-gallery { 
+    column-count: 4; /* เพิ่มจำนวนคอลัมน์เป็น 3 หรือ 4 จะทำให้ภาพแต่ละใบเล็กลงโดยอัตโนมัติ */
+    column-gap: 15px; /* ระยะห่างระหว่างคอลัมน์ 15px */
+    width: 100%;
+    padding: 20px; /* เพิ่มพื้นที่ว่างรอบๆ gallery ทำให้กลุ่มภาพดูเล็กลงและไม่ชิดขอบจอเกินไป */
+    box-sizing: border-box;
+}
+
+.image-gallery img { 
+    width: 100%; /* ให้ภาพกว้างเต็มคอลัมน์ที่ถูกแบ่งไว้ */
+    display: block;
+    margin-bottom: 15px; /* ระยะห่างแนวตั้งระหว่างภาพ 15px */
+    border-radius: 4px;
+    transition: transform 0.3s, border 0.3s; 
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+
+.image-gallery img:hover { 
+    transform: scale(1.02);
+    border: 3px solid #4db8ff; /* เพิ่มกรอบสีฟ้าเวลาชี้เหมือนในรูป */
+}
+
+/* --- 5. ตกแต่งอื่นๆ --- */
+.categories { 
+    padding: 30px 40px; /* เพิ่มระยะห่างบนล่างให้ดูโปร่งขึ้น */
+}
+
+.category-grid { 
+    display: grid; 
+    /* ปรับจาก 4 คอลัมน์เหลือ 3 คอลัมน์ เพื่อให้รูปแต่ละใบมีขนาดกว้างขึ้น */
+    grid-template-columns: repeat(4, 1fr); 
+    gap: 20px; /* เพิ่มระยะห่างระหว่างรูปเล็กน้อย */
+}
+
+.cat-item img { 
+    width: 100%; 
+    border-radius: 12px; /* ปรับขอบมนให้ดูทันสมัยขึ้นตามขนาดที่ใหญ่ขึ้น */
+    height: 280px;      /* ปรับความสูงจาก 100px เป็น 180px (หรือตามที่คุณต้องการ) */
+    object-fit: cover; 
+    transition: 0.3s;   /* เพิ่ม transition เผื่อทำ hover effect */
+    cursor: pointer;
+}
+
+/* เพิ่ม Effect เวลาเอาเมาส์ไปชี้ให้ดูน่าสนใจขึ้น */
+.cat-item img:hover {
+    transform: translateY(-5px); /* ให้รูปลอยขึ้นนิดนึง */
+    box-shadow: 0 10px 20px rgba(0,0,0,0.15); /* เพิ่มเงา */
+}
+
+.cat-item p {
+    margin-top: 10px;
+    font-weight: bold;
+    text-align: center;
+    color: #333;
+}
+
+.fab-add { 
+    position: fixed; bottom: 30px; right: 30px; 
+    width: 60px; height: 60px; border-radius: 50%; 
+    background: #1a1a2e; color: white; font-size: 30px; 
+    border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}

@@ -1,444 +1,11 @@
 import { useState } from "react";
+import "./App.css";
+import HomePage from "./HomePage";
 
-const style = `
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap');
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --dark: #1c2333;
-    --darker: #151c2b;
-    --mid: #253047;
-    --light: #f0f2f5;
-    --white: #ffffff;
-    --accent: #4fc3c3;
-    --muted: #8a9ab5;
-    --border: rgba(255,255,255,0.08);
-    --input-bg: rgba(255,255,255,0.04);
-  }
-
-  .auth-wrapper {
-    font-family: 'DM Sans', sans-serif;
-    display: flex;
-    min-height: 100vh;
-    background: var(--darker);
-    overflow: hidden;
-  }
-
-  /* ── LEFT PANEL ── */
-  .left-panel {
-    width: 45%;
-    min-height: 100vh;
-    background: var(--dark);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 0 52px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .left-panel::before {
-    content: '';
-    position: absolute;
-    top: -180px; left: -180px;
-    width: 500px; height: 500px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%);
-    pointer-events: none;
-  }
-
-  .left-panel::after {
-    content: '';
-    position: absolute;
-    bottom: -120px; right: -120px;
-    width: 360px; height: 360px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%);
-    pointer-events: none;
-  }
-
-  .brand {
-    position: absolute;
-    top: 52px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .brand-logo {
-    width: 40px; height: 40px;
-    border: 2px solid var(--white);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 16px;
-  }
-
-  .brand-logo svg { width: 20px; height: 20px; fill: var(--white); }
-
-  .brand-name {
-    font-family: 'Playfair Display', serif;
-    font-size: 28px;
-    font-weight: 900;
-    color: var(--white);
-    letter-spacing: -0.5px;
-  }
-
-  .brand-tagline {
-    margin-top: 6px;
-    font-size: 13px;
-    color: var(--muted);
-    font-weight: 300;
-    letter-spacing: 0.5px;
-  }
-
-  .left-center {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-
-  .left-headline {
-    font-family: 'Playfair Display', serif;
-    font-size: clamp(36px, 4vw, 52px);
-    font-weight: 900;
-    color: var(--white);
-    line-height: 1.1;
-    letter-spacing: -1px;
-    margin-bottom: 20px;
-  }
-
-  .left-headline em {
-    font-style: italic;
-    color: var(--accent);
-  }
-
-  .left-body {
-    font-size: 14px;
-    color: var(--muted);
-    line-height: 1.7;
-    max-width: 300px;
-    font-weight: 300;
-  }
-
-  .stat-row {
-    display: flex;
-    gap: 32px;
-    margin-top: 40px;
-  }
-
-  .stat {
-    border-top: 1px solid rgba(255,255,255,0.1);
-    padding-top: 14px;
-  }
-
-  .stat-num {
-    font-family: 'Playfair Display', serif;
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--white);
-  }
-
-  .stat-label {
-    font-size: 11px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 2px;
-  }
-
-  .left-footer {
-    position: absolute;
-    bottom: 44px;
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-    z-index: 1;
-    font-size: 12px;
-    color: rgba(255,255,255,0.2);
-    font-weight: 300;
-  }
-
-  /* Decorative grid lines */
-  .grid-lines {
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-    background-size: 60px 60px;
-    pointer-events: none;
-  }
-
-  /* ── RIGHT PANEL ── */
-  .right-panel {
-    flex: 1;
-    background: var(--light);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 48px;
-    position: relative;
-  }
-
-  .right-panel::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 4px;
-    background: linear-gradient(90deg, var(--dark), var(--mid), var(--dark));
-  }
-
-  .form-container {
-    width: 100%;
-    max-width: 400px;
-  }
-
-  /* Tabs */
-  .tabs {
-    display: flex;
-    background: #e8e8e8;
-    border-radius: 12px;
-    padding: 4px;
-    margin-bottom: 40px;
-  }
-
-  .tab {
-    flex: 1;
-    padding: 10px;
-    border: none;
-    border-radius: 9px;
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.25s ease;
-    background: transparent;
-    color: var(--muted);
-  }
-
-  .tab.active {
-    background: var(--dark);
-    color: var(--white);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-  }
-
-  /* Heading */
-  .form-heading {
-    font-family: 'Playfair Display', serif;
-    font-size: 32px;
-    font-weight: 900;
-    color: var(--darker);
-    letter-spacing: -0.8px;
-    margin-bottom: 6px;
-  }
-
-  .form-subheading {
-    font-size: 13.5px;
-    color: var(--muted);
-    font-weight: 300;
-    margin-bottom: 32px;
-  }
-
-  /* Input */
-  .field {
-    margin-bottom: 18px;
-    position: relative;
-  }
-
-  .field label {
-    display: block;
-    font-size: 11px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #666;
-    margin-bottom: 8px;
-  }
-
-  .input-wrap {
-    position: relative;
-  }
-
-  .input-wrap svg {
-    position: absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 16px; height: 16px;
-    stroke: #aaa;
-    fill: none;
-    stroke-width: 1.8;
-    pointer-events: none;
-  }
-
-  .field input {
-    width: 100%;
-    padding: 13px 14px 13px 42px;
-    background: var(--white);
-    border: 1.5px solid #ddd;
-    border-radius: 10px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    color: var(--darker);
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-
-  .field input:focus {
-    border-color: var(--dark);
-    box-shadow: 0 0 0 3px rgba(26,26,26,0.08);
-  }
-
-  .field input::placeholder { color: #bbb; }
-
-  /* Name row */
-  .name-row { display: flex; gap: 12px; }
-  .name-row .field { flex: 1; }
-
-  /* Forgot */
-  .forgot-row {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: -10px;
-    margin-bottom: 28px;
-  }
-
-  .forgot-link {
-    font-size: 12px;
-    color: var(--muted);
-    text-decoration: none;
-    cursor: pointer;
-    transition: color 0.2s;
-  }
-  .forgot-link:hover { color: var(--darker); }
-
-  /* Submit */
-  .submit-btn {
-    width: 100%;
-    padding: 14px;
-    background: var(--dark);
-    color: var(--white);
-    border: none;
-    border-radius: 10px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 15px;
-    font-weight: 500;
-    cursor: pointer;
-    letter-spacing: 0.3px;
-    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .submit-btn:hover {
-    background: var(--mid);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-    transform: translateY(-1px);
-  }
-
-  .submit-btn:active { transform: translateY(0); }
-
-  /* Divider */
-  .divider {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin: 24px 0;
-    color: #bbb;
-    font-size: 12px;
-  }
-  .divider::before, .divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #ddd;
-  }
-
-  /* Social */
-  .social-row {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 28px;
-  }
-
-  .social-btn {
-    flex: 1;
-    padding: 11px;
-    border: 1.5px solid #ddd;
-    background: var(--white);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    color: #555;
-    font-weight: 400;
-    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-  }
-  .social-btn:hover {
-    border-color: #aaa;
-    background: #fafafa;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  }
-  .social-btn svg { width: 18px; height: 18px; }
-
-  /* Switch link */
-  .switch-text {
-    text-align: center;
-    font-size: 13px;
-    color: var(--muted);
-  }
-  .switch-text button {
-    background: none; border: none;
-    color: var(--darker);
-    font-weight: 500;
-    cursor: pointer;
-    font-size: 13px;
-    font-family: 'DM Sans', sans-serif;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-
-  /* Checkbox */
-  .checkbox-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 24px;
-  }
-  .checkbox-row input[type="checkbox"] {
-    width: 16px; height: 16px;
-    accent-color: var(--dark);
-    cursor: pointer;
-  }
-  .checkbox-row label {
-    font-size: 12.5px;
-    color: var(--muted);
-    cursor: pointer;
-  }
-  .checkbox-row a { color: var(--darker); text-decoration: underline; text-underline-offset: 2px; }
-
-  @media (max-width: 768px) {
-    .auth-wrapper { flex-direction: column; }
-    .left-panel { width: 100%; min-height: auto; padding: 32px 28px; }
-    .left-headline { font-size: 30px; }
-    .stat-row { gap: 20px; }
-    .right-panel { padding: 40px 24px; }
-  }
-`;
+// ── Mock user database ──
+const MOCK_USERS = [
+  { email: "demo@imagery.com", password: "password123", name: "Demo User" },
+];
 
 // SVG Icons
 const IconMail = () => (
@@ -466,160 +33,268 @@ const AppleIcon = () => (
   </svg>
 );
 
-export default function AuthPage() {
+// ── Auth Page ──
+function AuthPage({ onLogin }) {
   const [mode, setMode] = useState("login");
+  const [error, setError] = useState("");
+
+  // Login state
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  // Register state
+  const [regFirstName, setRegFirstName] = useState("");
+  const [regLastName, setRegLastName] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regTerms, setRegTerms] = useState(false);
+
+  const handleLogin = () => {
+    setError("");
+    if (!loginEmail || !loginPassword) {
+      setError("Please enter your email and password.");
+      return;
+    }
+    const user = MOCK_USERS.find(
+      (u) => u.email === loginEmail && u.password === loginPassword
+    );
+    if (!user) {
+      setError("Invalid email or password.");
+      return;
+    }
+    onLogin({ name: user.name, email: user.email });
+  };
+
+  const handleRegister = () => {
+    setError("");
+    if (!regFirstName || !regLastName || !regEmail || !regPassword) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    if (regPassword.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (!regTerms) {
+      setError("Please accept the Terms of Service.");
+      return;
+    }
+    // Mock: register succeeds → auto login
+    const newUser = { name: `${regFirstName} ${regLastName}`, email: regEmail };
+    MOCK_USERS.push({ ...newUser, password: regPassword });
+    onLogin(newUser);
+  };
+
+  const switchMode = (m) => {
+    setMode(m);
+    setError("");
+  };
 
   return (
-    <>
-      <style>{style}</style>
-      <div className="auth-wrapper">
+    <div className="auth-wrapper">
+      {/* ── LEFT PANEL ── */}
+      <div className="left-panel">
+        <div className="grid-lines" />
 
-        {/* ── LEFT PANEL ── */}
-        <div className="left-panel">
-          <div className="grid-lines" />
-
-          <div className="brand">
-            <div className="brand-logo">
-              <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-            </div>
-            <div className="brand-name">Imagery</div>
-            <div className="brand-tagline">break your imagination limit</div>
+        <div className="brand">
+          <div className="brand-logo">
+            <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
           </div>
-
-          <div className="left-center">
-            <div className="left-headline">
-              Where <em>ideas</em><br/>become<br/>reality.
-            </div>
-            <p className="left-body">
-              A creative platform for designers, artists, and visionaries.
-              Upload, explore, and collaborate on visual stories that move people.
-            </p>
-
-          </div>
-
-          <div className="left-footer">
-            © 2025 Imagery Inc. All rights reserved.
-          </div>
+          <div className="brand-name">Imagery</div>
+          <div className="brand-tagline">break your imagination limit</div>
         </div>
 
-        {/* ── RIGHT PANEL ── */}
-        <div className="right-panel">
-          <div className="form-container">
-
-            {/* Tabs */}
-            <div className="tabs">
-              <button className={`tab ${mode === "login" ? "active" : ""}`} onClick={() => setMode("login")}>
-                Sign In
-              </button>
-              <button className={`tab ${mode === "register" ? "active" : ""}`} onClick={() => setMode("register")}>
-                Register
-              </button>
-            </div>
-
-            {mode === "login" ? (
-              <>
-                <div className="form-heading">Welcome back.</div>
-                <div className="form-subheading">Sign in to your Imagery account</div>
-
-                <div className="field">
-                  <label>Email</label>
-                  <div className="input-wrap">
-                    <IconMail />
-                    <input type="email" placeholder="you@example.com" />
-                  </div>
-                </div>
-
-                <div className="field">
-                  <label>Password</label>
-                  <div className="input-wrap">
-                    <IconLock />
-                    <input type="password" placeholder="••••••••" />
-                  </div>
-                </div>
-
-                <div className="forgot-row">
-                  <span className="forgot-link">Forgot password?</span>
-                </div>
-
-                <button className="submit-btn">Sign In</button>
-
-                <div className="divider">or continue with</div>
-
-                <div className="social-row">
-                  <button className="social-btn"><GoogleIcon /> Google</button>
-                  <button className="social-btn"><AppleIcon /> Apple</button>
-                </div>
-
-                <div className="switch-text">
-                  Don't have an account?{" "}
-                  <button onClick={() => setMode("register")}>Create one</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="form-heading">Join us.</div>
-                <div className="form-subheading">Create your free Imagery account</div>
-
-                <div className="name-row">
-                  <div className="field">
-                    <label>First Name</label>
-                    <div className="input-wrap">
-                      <IconUser />
-                      <input type="text" placeholder="Jane" />
-                    </div>
-                  </div>
-                  <div className="field">
-                    <label>Last Name</label>
-                    <div className="input-wrap">
-                      <IconUser />
-                      <input type="text" placeholder="Doe" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="field">
-                  <label>Email</label>
-                  <div className="input-wrap">
-                    <IconMail />
-                    <input type="email" placeholder="you@example.com" />
-                  </div>
-                </div>
-
-                <div className="field">
-                  <label>Password</label>
-                  <div className="input-wrap">
-                    <IconLock />
-                    <input type="password" placeholder="Min. 8 characters" />
-                  </div>
-                </div>
-
-                <div className="checkbox-row">
-                  <input type="checkbox" id="terms" />
-                  <label htmlFor="terms">
-                    I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
-                  </label>
-                </div>
-
-                <button className="submit-btn">Create Account</button>
-
-                <div className="divider">or register with</div>
-
-                <div className="social-row">
-                  <button className="social-btn"><GoogleIcon /> Google</button>
-                  <button className="social-btn"><AppleIcon /> Apple</button>
-                </div>
-
-                <div className="switch-text">
-                  Already have an account?{" "}
-                  <button onClick={() => setMode("login")}>Sign in</button>
-                </div>
-              </>
-            )}
-
+        <div className="left-center">
+          <div className="left-headline">
+            Where <em>ideas</em><br/>become<br/>reality.
           </div>
+          <p className="left-body">
+            A creative platform for designers, artists, and visionaries.
+            Upload, explore, and collaborate on visual stories that move people.
+          </p>
         </div>
 
+        <div className="left-footer">
+          © 2025 Imagery Inc. All rights reserved.
+        </div>
       </div>
-    </>
+
+      {/* ── RIGHT PANEL ── */}
+      <div className="right-panel">
+        <div className="form-container">
+
+          {/* Tabs */}
+          <div className="tabs">
+            <button className={`tab ${mode === "login" ? "active" : ""}`} onClick={() => switchMode("login")}>
+              Sign In
+            </button>
+            <button className={`tab ${mode === "register" ? "active" : ""}`} onClick={() => switchMode("register")}>
+              Register
+            </button>
+          </div>
+
+          {/* Error message */}
+          {error && <div className="error-msg">{error}</div>}
+
+          {mode === "login" ? (
+            <>
+              <div className="form-heading">Welcome back.</div>
+              <div className="form-subheading">Sign in to your Imagery account</div>
+
+              <div className="field">
+                <label>Email</label>
+                <div className="input-wrap">
+                  <IconMail />
+                  <input
+                    type="email"
+                    placeholder="you@example.com"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                  />
+                </div>
+              </div>
+
+              <div className="field">
+                <label>Password</label>
+                <div className="input-wrap">
+                  <IconLock />
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                  />
+                </div>
+              </div>
+
+              <div className="forgot-row">
+                <span className="forgot-link">Forgot password?</span>
+              </div>
+
+              <button className="submit-btn" onClick={handleLogin}>Sign In</button>
+
+              <div className="divider">or continue with</div>
+
+              <div className="social-row">
+                <button className="social-btn" onClick={() => onLogin({ name: "Google User", email: "google@mock.com" })}>
+                  <GoogleIcon /> Google
+                </button>
+                <button className="social-btn" onClick={() => onLogin({ name: "Apple User", email: "apple@mock.com" })}>
+                  <AppleIcon /> Apple
+                </button>
+              </div>
+
+              <div className="switch-text">
+                Don't have an account?{" "}
+                <button onClick={() => switchMode("register")}>Create one</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="form-heading">Join us.</div>
+              <div className="form-subheading">Create your free Imagery account</div>
+
+              <div className="name-row">
+                <div className="field">
+                  <label>First Name</label>
+                  <div className="input-wrap">
+                    <IconUser />
+                    <input
+                      type="text"
+                      placeholder="Jane"
+                      value={regFirstName}
+                      onChange={(e) => setRegFirstName(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Last Name</label>
+                  <div className="input-wrap">
+                    <IconUser />
+                    <input
+                      type="text"
+                      placeholder="Doe"
+                      value={regLastName}
+                      onChange={(e) => setRegLastName(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="field">
+                <label>Email</label>
+                <div className="input-wrap">
+                  <IconMail />
+                  <input
+                    type="email"
+                    placeholder="you@example.com"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="field">
+                <label>Password</label>
+                <div className="input-wrap">
+                  <IconLock />
+                  <input
+                    type="password"
+                    placeholder="Min. 8 characters"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="checkbox-row">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={regTerms}
+                  onChange={(e) => setRegTerms(e.target.checked)}
+                />
+                <label htmlFor="terms">
+                  I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
+                </label>
+              </div>
+
+              <button className="submit-btn" onClick={handleRegister}>Create Account</button>
+
+              <div className="divider">or register with</div>
+
+              <div className="social-row">
+                <button className="social-btn" onClick={() => onLogin({ name: "Google User", email: "google@mock.com" })}>
+                  <GoogleIcon /> Google
+                </button>
+                <button className="social-btn" onClick={() => onLogin({ name: "Apple User", email: "apple@mock.com" })}>
+                  <AppleIcon /> Apple
+                </button>
+              </div>
+
+              <div className="switch-text">
+                Already have an account?{" "}
+                <button onClick={() => switchMode("login")}>Sign in</button>
+              </div>
+            </>
+          )}
+
+        </div>
+      </div>
+    </div>
   );
+}
+
+// ── Root App: ควบคุม page routing ──
+export default function App() {
+  const [user, setUser] = useState(null); // null = ยังไม่ login
+
+  if (!user) {
+    return <AuthPage onLogin={(u) => setUser(u)} />;
+  }
+
+  // เมื่อ login แล้ว → render HomePage
+  return <HomePage user={user} onLogout={() => setUser(null)} />;
 }
