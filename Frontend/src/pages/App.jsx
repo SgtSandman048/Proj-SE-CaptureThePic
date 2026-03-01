@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 import HomePage from "./HomePage";
 
-// ── Mock user database ──
-const MOCK_USERS = [
-  { email: "demo@imagery.com", password: "password123", name: "Demo User" },
-];
+// ── API base URL — ปรับตาม environment ──
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+
+// ── Token helpers ──
+const saveToken = (token) => localStorage.setItem("accessToken", token);
+const getToken = () => localStorage.getItem("accessToken");
+const removeToken = () => localStorage.removeItem("accessToken");
 
 // SVG Icons
 const IconMail = () => (
@@ -37,52 +40,125 @@ const AppleIcon = () => (
 function AuthPage({ onLogin }) {
   const [mode, setMode] = useState("login");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   // Login state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
   // Register state
-  const [regFirstName, setRegFirstName] = useState("");
-  const [regLastName, setRegLastName] = useState("");
+  const [regUsername, setRegUsername] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regTerms, setRegTerms] = useState(false);
 
-  const handleLogin = () => {
+  // ── Login ──
+  const handleLogin = async () => {
     setError("");
     if (!loginEmail || !loginPassword) {
       setError("Please enter your email and password.");
       return;
     }
-    const user = MOCK_USERS.find(
-      (u) => u.email === loginEmail && u.password === loginPassword
-    );
-    if (!user) {
-      setError("Invalid email or password.");
-      return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include", // รับ httpOnly cookie (refreshToken)
+        body: JSON.stringify({ email: loginEmail, pass: loginPassword }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Login failed. Please try again.");
+        return;
+      }
+
+      // เก็บ access token
+      saveToken(data.data.token);
+      onLogin({
+        name: data.data.user.username,
+        email: data.data.user.email,
+        role: data.data.user.role,
+        uid: data.data.user.userId,
+      });
+    } catch {
+      setError("Cannot connect to server. Please try again later.");
+    } finally {
+      setLoading(false);
     }
-    onLogin({ name: user.name, email: user.email });
   };
 
-  const handleRegister = () => {
+  // ── Register ──
+  const handleRegister = async () => {
     setError("");
-    if (!regFirstName || !regLastName || !regEmail || !regPassword) {
+    if (!regUsername || !regEmail || !regPassword) {
       setError("Please fill in all fields.");
-      return;
-    }
-    if (regPassword.length < 8) {
-      setError("Password must be at least 8 characters.");
       return;
     }
     if (!regTerms) {
       setError("Please accept the Terms of Service.");
       return;
     }
-    // Mock: register succeeds → auto login
-    const newUser = { name: `${regFirstName} ${regLastName}`, email: regEmail };
-    MOCK_USERS.push({ ...newUser, password: regPassword });
-    onLogin(newUser);
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: regUsername,
+          email: regEmail,
+          pass: regPassword,
+          role: "user",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        // แสดง validation errors ถ้ามี
+        if (data.errors && data.errors.length > 0) {
+          setError(data.errors.map((e) => e.msg).join(" | "));
+        } else {
+          setError(data.message || "Registration failed. Please try again.");
+        }
+        return;
+      }
+
+      // สมัครสำเร็จ → auto login
+      setError("");
+      setMode("login");
+      setLoginEmail(regEmail);
+      setLoginPassword(regPassword);
+      // แจ้งให้ user กด login เอง หรือจะ auto-login ด้านล่างก็ได้
+      // ที่นี่เลือก auto-login ทันที
+      const loginRes = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: regEmail, pass: regPassword }),
+      });
+      const loginData = await loginRes.json();
+
+      if (loginRes.ok) {
+        saveToken(loginData.data.token);
+        onLogin({
+          name: loginData.data.user.username,
+          email: loginData.data.user.email,
+          role: loginData.data.user.role,
+          uid: loginData.data.user.userId,
+        });
+      } else {
+        setError("Registered successfully! Please sign in.");
+      }
+    } catch {
+      setError("Cannot connect to server. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const switchMode = (m) => {
@@ -151,6 +227,7 @@ function AuthPage({ onLogin }) {
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -165,6 +242,7 @@ function AuthPage({ onLogin }) {
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -173,15 +251,17 @@ function AuthPage({ onLogin }) {
                 <span className="forgot-link">Forgot password?</span>
               </div>
 
-              <button className="submit-btn" onClick={handleLogin}>Sign In</button>
+              <button className="submit-btn" onClick={handleLogin} disabled={loading}>
+                {loading ? "Signing in…" : "Sign In"}
+              </button>
 
               <div className="divider">or continue with</div>
 
               <div className="social-row">
-                <button className="social-btn" onClick={() => onLogin({ name: "Google User", email: "google@mock.com" })}>
+                <button className="social-btn" disabled>
                   <GoogleIcon /> Google
                 </button>
-                <button className="social-btn" onClick={() => onLogin({ name: "Apple User", email: "apple@mock.com" })}>
+                <button className="social-btn" disabled>
                   <AppleIcon /> Apple
                 </button>
               </div>
@@ -196,30 +276,17 @@ function AuthPage({ onLogin }) {
               <div className="form-heading">Join us.</div>
               <div className="form-subheading">Create your free Imagery account</div>
 
-              <div className="name-row">
-                <div className="field">
-                  <label>First Name</label>
-                  <div className="input-wrap">
-                    <IconUser />
-                    <input
-                      type="text"
-                      placeholder="Jane"
-                      value={regFirstName}
-                      onChange={(e) => setRegFirstName(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Last Name</label>
-                  <div className="input-wrap">
-                    <IconUser />
-                    <input
-                      type="text"
-                      placeholder="Doe"
-                      value={regLastName}
-                      onChange={(e) => setRegLastName(e.target.value)}
-                    />
-                  </div>
+              <div className="field">
+                <label>Username</label>
+                <div className="input-wrap">
+                  <IconUser />
+                  <input
+                    type="text"
+                    placeholder="your_username"
+                    value={regUsername}
+                    onChange={(e) => setRegUsername(e.target.value)}
+                    disabled={loading}
+                  />
                 </div>
               </div>
 
@@ -232,6 +299,7 @@ function AuthPage({ onLogin }) {
                     placeholder="you@example.com"
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -242,9 +310,10 @@ function AuthPage({ onLogin }) {
                   <IconLock />
                   <input
                     type="password"
-                    placeholder="Min. 8 characters"
+                    placeholder="Min. 8 chars, A-Z, a-z, 0-9"
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -255,21 +324,24 @@ function AuthPage({ onLogin }) {
                   id="terms"
                   checked={regTerms}
                   onChange={(e) => setRegTerms(e.target.checked)}
+                  disabled={loading}
                 />
                 <label htmlFor="terms">
                   I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
                 </label>
               </div>
 
-              <button className="submit-btn" onClick={handleRegister}>Create Account</button>
+              <button className="submit-btn" onClick={handleRegister} disabled={loading}>
+                {loading ? "Creating account…" : "Create Account"}
+              </button>
 
               <div className="divider">or register with</div>
 
               <div className="social-row">
-                <button className="social-btn" onClick={() => onLogin({ name: "Google User", email: "google@mock.com" })}>
+                <button className="social-btn" disabled>
                   <GoogleIcon /> Google
                 </button>
-                <button className="social-btn" onClick={() => onLogin({ name: "Apple User", email: "apple@mock.com" })}>
+                <button className="social-btn" disabled>
                   <AppleIcon /> Apple
                 </button>
               </div>
@@ -287,14 +359,80 @@ function AuthPage({ onLogin }) {
   );
 }
 
-// ── Root App: ควบคุม page routing ──
+// ── Root App ──
 export default function App() {
-  const [user, setUser] = useState(null); // null = ยังไม่ login
+  const [user, setUser] = useState(null);
+  const [checking, setChecking] = useState(true); // ตรวจ token ที่ค้างอยู่
+
+  // ── เมื่อ app โหลด ให้ตรวจสอบ token ใน localStorage ──
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      setChecking(false);
+      return;
+    }
+
+    // เรียก GET /api/auth/me เพื่อยืนยัน token ยังใช้ได้
+    fetch(`${API_BASE}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setUser({
+            name: data.data.username,
+            email: data.data.email,
+            role: data.data.role,
+            uid: data.data.uid,
+          });
+        } else {
+          // token หมดอายุหรือ invalid → ล้างออก
+          removeToken();
+        }
+      })
+      .catch(() => removeToken())
+      .finally(() => setChecking(false));
+  }, []);
+
+  // ── Logout: เรียก backend ด้วย ──
+  const handleLogout = async () => {
+    const token = getToken();
+    if (token) {
+      try {
+        await fetch(`${API_BASE}/auth/logout`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
+        });
+      } catch {
+        // ถ้า network error ก็ logout ฝั่ง client ไปก่อน
+      }
+    }
+    removeToken();
+    setUser(null);
+  };
+
+  if (checking) {
+    // แสดง loading screen ระหว่างตรวจสอบ session
+    return (
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100vh",
+        background: "#0a0a0a",
+        color: "#fff",
+        fontSize: "1.2rem",
+        letterSpacing: "0.1em",
+      }}>
+        Loading…
+      </div>
+    );
+  }
 
   if (!user) {
     return <AuthPage onLogin={(u) => setUser(u)} />;
   }
 
-  // เมื่อ login แล้ว → render HomePage
-  return <HomePage user={user} onLogout={() => setUser(null)} />;
+  return <HomePage user={user} onLogout={handleLogout} />;
 }
