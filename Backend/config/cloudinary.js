@@ -48,7 +48,7 @@ const watermarkStorage = new CloudinaryStorage({
             font_family: 'Arial',
             font_size: 55,
             font_weight: 'bold',
-            text: '© ImageStore',
+            text: '© Imagery',
           },
           color: '#FFFFFF',
           opacity: 45,

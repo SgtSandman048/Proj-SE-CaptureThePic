@@ -1,23 +1,9 @@
-/**
- * middlewares/roleMiddleware.js
- * ─────────────────────────────────────────────────────────
- * Role-Based Access Control (RBAC) middleware guards
- *
- * Usage (always place AFTER authenticate middleware):
- *
- *   router.post('/upload', authenticate, requireSeller, handler)
- *   router.delete('/:id', authenticate, requireOwnerOrAdmin, handler)
- *   router.get('/admin', authenticate, requireAdmin, handler)
- */
+// middlewares/roleMiddleware.js
+
 const { sendError } = require('../utils/apiResponse');
 const { ROLES } = require('../models/userModel');
 
-/**
- * requireRole(...roles)
- * Returns middleware allowing only users whose role is in the provided list.
- *
- * @param {...string} roles — e.g. requireRole('admin'), requireRole('seller', 'admin')
- */
+
 const requireRole = (...roles) => (req, res, next) => {
   if (!req.user) {
     return sendError(res, 401, 'Authentication required');
@@ -32,34 +18,15 @@ const requireRole = (...roles) => (req, res, next) => {
   next();
 };
 
-// ── Pre-built convenience guards ───────────────────────────────────────────
+// Pre-built convenience guards
 
-/** Admin only */
+// Admin Only
 const requireAdmin = requireRole(ROLES.ADMIN);
 
+// Logged in User Only
 const requireUser = requireRole(ROLES.USER, ROLES.ADMIN);
-/** Seller or Admin — Admins can also upload/manage images */
-//const requireSeller = requireRole(ROLES.SELLER, ROLES.ADMIN);
 
-/** Buyer or Admin */
-//const requireBuyer = requireRole(ROLES.BUYER, ROLES.ADMIN);
-
-/**
- * requireOwnerOrAdmin
- * Allows access if the authenticated user is the resource owner OR an admin.
- *
- * Compares req.user.uid against a field on the resource object
- * that must be attached to req.resource by the controller before calling this.
- *
- * OR use with a paramName to compare against a route param directly.
- *
- * @param {string} ownerUidField — Field on req.resource that holds the owner UID
- *
- * Example (in controller):
- *   const image = await getImageById(req.params.id);
- *   req.resource = image;
- *   return requireOwnerOrAdmin('sellerId')(req, res, next);
- */
+// Image Owner Only
 const requireOwnerOrAdmin = (ownerUidField = 'sellerId') => (req, res, next) => {
   if (!req.user) {
     return sendError(res, 401, 'Authentication required');

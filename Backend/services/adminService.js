@@ -1,17 +1,5 @@
-/**
- * services/adminService.js
- * ─────────────────────────────────────────────────────────
- * Firestore business logic for Admin Operations:
- *
- *   getCheckingOrders()   — fetch all orders with status "checking"
- *   verifyOrder()         — transition order to "completed" or "rejected"
- *
- * Error contract (thrown as Error with message string):
- *   'ORDER_NOT_FOUND'      — orderId does not exist
- *   'INVALID_STATUS'       — body status is not "completed" or "rejected"
- *   'INVALID_TRANSITION'   — current order status cannot move to target
- *                            e.g. trying to verify a "pending" order
- */
+// services/adminService.js
+
 const { db: getDb, FieldValue } = require('../config/firebase');
 const { isValidTransition }     = require('../models/orderModel');
 
@@ -22,13 +10,7 @@ const ORDERS_COL = 'orders';
 const IMAGES_COL = 'images';
 const USERS_COL  = 'users';
 
-// ── getCheckingOrders ───────────────────────────────────────────────────────
-/**
- * Return all orders currently awaiting admin verification (status: "checking").
- * Sorted oldest-first so admins work through the queue in arrival order.
- *
- * @returns {object[]} Array of order documents with id attached
- */
+
 const getCheckingOrders = async () => {
   const snap = await db
     .collection(ORDERS_COL)
@@ -39,29 +21,6 @@ const getCheckingOrders = async () => {
   return snap.docs.map((doc) => ({ orderId: doc.id, ...doc.data() }));
 };
 
-// ── verifyOrder ─────────────────────────────────────────────────────────────
-/**
- * Transition an order to "completed" or "rejected".
- * Uses isValidTransition() from orderModel to enforce the state machine:
- *   checking → completed  ✅
- *   checking → rejected   ✅
- *   pending  → completed  ❌  throws INVALID_TRANSITION
- *   any      → checking   ❌  throws INVALID_TRANSITION
- *
- * On approval ("completed"):
- *   - Updates order status + timestamps
- *   - Increments image.purchases counter
- *   - Adds imageId to buyer's purchasedImages array
- *
- * On rejection ("rejected"):
- *   - Updates order status
- *   - Buyer can re-upload slip (orderService.uploadSlip allows pending → checking again)
- *
- * @param {string} orderId      — Firestore order document ID
- * @param {string} targetStatus — "completed" or "rejected"
- * @param {string} adminUid     — UID of the admin performing the action
- * @param {string} [adminNote]  — Optional note (required for rejections)
- */
 const verifyOrder = async (orderId, targetStatus, adminUid, adminNote = null) => {
   // ── 1. Validate targetStatus value ───────────────────────────────────────
   const allowedTargets = ['completed', 'rejected'];

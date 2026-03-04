@@ -157,12 +157,16 @@ const uploadImage = async (req, res) => {
       transformation: [
         { width: 1200, height: 900, crop: 'limit', quality: 'auto:good' },
         {
-          overlay: { font_family: 'Arial', font_size: 55, font_weight: 'bold', text: '© ImageStore' },
-          color: '#FFFFFF', opacity: 45, gravity: 'center', angle: -30, y: -20,
+          overlay: { font_family: 'Verdana', font_size: 45, font_weight: 'bold', text: '© Imagery Store' },
+          color: '#FFFFFF', opacity: 65, gravity: 'north_west', angle: -30, x: 20, y: 20,
         },
         {
-          overlay: { font_family: 'Arial', font_size: 45, font_weight: 'bold', text: '© ImageStore' },
-          color: '#FFFFFF', opacity: 30, gravity: 'south_east', angle: -30, x: 20, y: 20,
+          overlay: { font_family: 'Verdana', font_size: 55, font_weight: 'bold', text: '© Imagery Store' },
+          color: '#FFFFFF', opacity: 65, gravity: 'center', angle: -30, y: -20,
+        },
+        {
+          overlay: { font_family: 'Verdana', font_size: 45, font_weight: 'bold', text: '© Imagery Store' },
+          color: '#FFFFFF', opacity: 65, gravity: 'south_east', angle: -30, x: 20, y: 20,
         },
       ],
     });

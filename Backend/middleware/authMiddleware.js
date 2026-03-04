@@ -2,6 +2,7 @@
 
 //const redisClient = require('../config/redis');
 const { verifyAccessToken } = require('../services/jwtService');
+const { isBlacklisted }     = require('../services/jwtBlacklistService');
 const { getUserById } = require('../services/userService');
 const { sendError } = require('../utils/apiResponse');
 //const logger = require('../utils/logger');
@@ -35,10 +36,9 @@ const authenticate = async (req, res, next) => {
       throw err;
     }
 
-    /*const isBlacklisted = await redisClient.get(`blacklist:${decoded.jti}`);
-    if (isBlacklisted) {
-      return sendError(res, 401, 'Token has been invalidated. Please log in again.');
-    }*/
+    if (isBlacklisted(decoded.jti)) {
+      return sendError(res, 401, 'Token has been revoked. Please log in again.');
+    }
 
     // 3. Fetch fresh user from Firestore to ensure account is still active
     //    (Cached in a 60-second window to reduce DB reads on high-traffic routes)
@@ -77,6 +77,8 @@ const optionalAuthenticate = async (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
     const decoded = verifyAccessToken(token);
+    if (isBlacklisted(decoded.jti)) { req.user = null; return next(); }
+
     const user = await getUserById(decoded.uid);
 
     req.user = user?.isActive
