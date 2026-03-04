@@ -201,9 +201,9 @@ const uploadImage = async (req, res) => {
       watermarkPublicId,     
       originalPublicId,                  
       metadata: {
-        width:  req.file.width  || null,
-        height: req.file.height || null,
-        format: req.file.format || null,
+        width:  originalResult.width  || null,
+        height: originalResult.height || null,
+        format: originalResult.format || null,
         bytes:  req.file.size   || null,
       },
     });
