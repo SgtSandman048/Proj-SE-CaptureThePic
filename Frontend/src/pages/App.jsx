@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import "./App.css";
+
 import HomePage from "./HomePage";
+import HomePageAdmin from "./HomePageAdmin";
 import OrderHistory from "./OrderHistory";
 
 // ── API base URL — ปรับตาม environment ──
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
 // ── Token helpers ──
 const saveToken = (token) => localStorage.setItem("accessToken", token);
@@ -201,6 +202,18 @@ export default function App() {
   // ── Page routing ──
   if (page === "orders") {
     return <OrderHistory user={user} onBack={() => setPage("home")} />;
+  }
+
+  // Admin role → render admin homepage
+  if (user?.role === "admin") {
+    return (
+      <HomePageAdmin
+        user={user}
+        onLogout={handleLogout}
+        onOrdersClick={() => setPage("orders")}
+        onNotificationsClick={() => setPage("notifications")}
+      />
+    );
   }
 
   return (
