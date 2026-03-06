@@ -24,7 +24,7 @@ const PREF_GROUPS = [
   { icon: "💻", label: "ธุรกิจ/เทคโนโลยี",  tags: ["Business","Technology","Office","Working","Remote Work"] },
 ];
 
-export default function HomePage({ user, onLogout }) {
+export default function HomePage({ user, onLogout, onOrdersClick }) {
   const [prefOpen,         setPrefOpen]         = useState(false);
   const [selectedImageId,  setSelectedImageId]  = useState(null);
   const [images,           setImages]           = useState([]);
@@ -60,6 +60,7 @@ export default function HomePage({ user, onLogout }) {
           setPrefOpen={setPrefOpen}
           activeNav="home"
           onHomeClick={() => setSelectedImageId(null)}
+          onOrdersClick={onOrdersClick}
         />
         <ImageDetail
           imageId={selectedImageId}
@@ -80,6 +81,7 @@ export default function HomePage({ user, onLogout }) {
         prefOpen={prefOpen}
         setPrefOpen={setPrefOpen}
         activeNav="home"
+        onOrdersClick={onOrdersClick}
       />
 
       <main className="main-content">
@@ -191,7 +193,7 @@ export default function HomePage({ user, onLogout }) {
 }
 
 // ── Sidebar component ───────────────────────────────────────────
-function Sidebar({ user, onLogout, prefOpen, setPrefOpen, activeNav, onHomeClick }) {
+function Sidebar({ user, onLogout, prefOpen, setPrefOpen, activeNav, onHomeClick, onOrdersClick, onNotificationsClick }) {
   return (
     <aside className="sidebar">
 
@@ -238,8 +240,8 @@ function Sidebar({ user, onLogout, prefOpen, setPrefOpen, activeNav, onHomeClick
 
 
 
-        <a href="#">📦 My Orders</a>
-        <a href="#">🔔 Notifications</a>
+        <a href="#" onClick={(e) => { e.preventDefault(); onOrdersClick?.(); }}>📦 My Orders</a>
+        <a href="#" onClick={(e) => { e.preventDefault(); alert("Notifications coming soon!"); }}>🔔 Notifications</a>
       </nav>
 
       {/* User */}
