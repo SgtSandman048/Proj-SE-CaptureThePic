@@ -443,3 +443,17 @@
 .oh-confirm-yes:hover {
   background: rgba(239,68,68,0.25);
 }
+
+.oh-qr-section { margin-bottom: 8px; }
+.oh-qr-box {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0;
+}
+.oh-qr-img {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid var(--oh-border);
+}

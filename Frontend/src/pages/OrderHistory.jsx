@@ -269,11 +269,20 @@ function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
           {/* ── Status: pending → show upload slip ──────────── */}
           {order.status === "pending" && (
             <div className="oh-slip-zone">
-              <p className="oh-slip-title">Upload Payment Slip</p>
-              <p className="oh-slip-hint">
-                Transfer payment and upload your slip to proceed.
-              </p>
-
+          {/* ── QR Code ── */}
+          <div className="oh-qr-section">
+            <p className="oh-slip-title">Scan to Pay</p>
+            <p className="oh-slip-hint">Scan the QR code below to make your payment.</p>
+          <div className="oh-qr-box">
+            <img
+              src="https://res.cloudinary.com/dw4bi2d8a/image/upload/v1772868215/645709013_2150592682449296_1042520382335589631_n_ujmnyk.jpg"
+              alt="Payment QR Code"
+              className="oh-qr-img"
+            />
+            </div>
+          </div>
+        <div className="oh-card-divider" />
+          <p className="oh-slip-title">Upload Payment Slip</p>
               <div
                 className={`oh-drop-zone ${dragOver ? "drag-over" : ""}`}
                 onClick={() => fileRef.current?.click()}
