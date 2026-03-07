@@ -124,4 +124,21 @@ const getDownloadUrl = async ({ orderId, userId }) => {
   return downloadUrl;
 };
 
-module.exports = { createOrder, uploadSlip, getOrdersByUser, getDownloadUrl };
+const cancelOrder = async ({ orderId, userId }) => {
+  const orderRef = db.collection(ORDERS_COL).doc(orderId);
+  const orderSnap = await orderRef.get();
+
+  if (!orderSnap.exists) throw new Error('ORDER_NOT_FOUND');
+
+  const order = orderSnap.data();
+
+  if (order.userId !== userId) throw new Error('FORBIDDEN');
+  if (order.status !== 'pending') throw new Error('INVALID_STATUS');
+
+  await orderRef.update({
+    status: 'cancelled',
+    updatedAt: new Date().toISOString(),
+  });
+};
+
+module.exports = { createOrder, uploadSlip, getOrdersByUser, getDownloadUrl, cancelOrder };
