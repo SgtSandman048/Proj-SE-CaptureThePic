@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import "./HomePage.css";
 import ImageDetail from "./ImageDetail";
+import ProfilePage from "./ProfilePage";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const getToken = () => localStorage.getItem("accessToken");
@@ -27,6 +28,8 @@ const PREF_GROUPS = [
 export default function HomePage({ user, onLogout, onOrdersClick }) {
   const [prefOpen,         setPrefOpen]         = useState(false);
   const [selectedImageId,  setSelectedImageId]  = useState(null);
+  const [showProfile,      setShowProfile]      = useState(false);
+  const [theme,            setTheme]            = useState("dark");
   const [images,           setImages]           = useState([]);
   const [loadingImages,    setLoadingImages]    = useState(true);
   const [activeFilter,     setActiveFilter]     = useState("All");
@@ -72,6 +75,28 @@ export default function HomePage({ user, onLogout, onOrdersClick }) {
     );
   }
 
+  // ── Profile page view ───────────────────────────────────────
+  if (showProfile) {
+    return (
+      <div className="app-container">
+        <Sidebar
+          user={user}
+          onLogout={onLogout}
+          prefOpen={prefOpen}
+          setPrefOpen={setPrefOpen}
+          activeNav="profile"
+          onHomeClick={() => setShowProfile(false)}
+        />
+        <ProfilePage
+          user={user}
+          onBack={() => setShowProfile(false)}
+          theme={theme}
+          onThemeChange={(t) => setTheme(t)}
+        />
+      </div>
+    );
+  }
+
   // ── Normal home view ────────────────────────────────────────
   return (
     <div className="app-container">
@@ -82,6 +107,7 @@ export default function HomePage({ user, onLogout, onOrdersClick }) {
         setPrefOpen={setPrefOpen}
         activeNav="home"
         onOrdersClick={onOrdersClick}
+        onProfileClick={() => setShowProfile(true)}
       />
 
       <main className="main-content">
@@ -193,7 +219,7 @@ export default function HomePage({ user, onLogout, onOrdersClick }) {
 }
 
 // ── Sidebar component ───────────────────────────────────────────
-function Sidebar({ user, onLogout, prefOpen, setPrefOpen, activeNav, onHomeClick, onOrdersClick, onNotificationsClick }) {
+function Sidebar({ user, onLogout, prefOpen, setPrefOpen, activeNav, onHomeClick, onOrdersClick, onNotificationsClick, onProfileClick }) {
   return (
     <aside className="sidebar">
 
@@ -254,7 +280,11 @@ function Sidebar({ user, onLogout, prefOpen, setPrefOpen, activeNav, onHomeClick
             <div className="profile-role">{user?.role ?? "buyer"}</div>
           </div>
         </div>
-        <a href="#" className="settings">⚙ Settings</a>
+        <a
+          href="#"
+          className="settings"
+          onClick={(e) => { e.preventDefault(); onProfileClick?.(); }}
+        >⚙ Settings</a>
         {onLogout && (
           <a
             href="#"
