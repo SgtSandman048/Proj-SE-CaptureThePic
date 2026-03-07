@@ -40,3 +40,13 @@ export const getDownloadUrl = async (orderId) => {
   if (!res.ok) throw new Error(data.message || "Download unavailable");
   return data.data.downloadUrl;
 };
+
+export const cancelOrder = async (orderId) => {
+  const res = await fetch(`${API_BASE}/orders/${orderId}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to cancel order");
+  return data.data;
+};

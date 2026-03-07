@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { getMyOrders, uploadSlip, getDownloadUrl } from "../services/orderService";
+import { getMyOrders, uploadSlip, getDownloadUrl, cancelOrder } from "../services/orderService";
 import "./OrderHistory.css";
 
 // ── Status config ──────────────────────────────────────────────
@@ -8,7 +8,8 @@ const STATUS = {
   checking:  { label: "Checking",   color: "#3b82f6", bg: "rgba(59,130,246,0.12)",  icon: "🔍" },
   completed: { label: "Completed",  color: "#10b981", bg: "rgba(16,185,129,0.12)",  icon: "✓"  },
   rejected:  { label: "Rejected",   color: "#ef4444", bg: "rgba(239,68,68,0.12)",   icon: "✗"  },
-};
+  cancelled: { label: "Cancelled",  color: "#6b7280", bg: "rgba(107,114,128,0.12)", icon: "🚫" },
+};;
 
 const formatDate = (iso) => {
   if (!iso) return "—";
@@ -40,6 +41,7 @@ export default function OrderHistory({ user, onBack }) {
   const [activeTab,   setActiveTab]   = useState("all");
   const [expandedId,  setExpandedId]  = useState(null);
   const { toast, show: showToast }    = useToast();
+  
 
   // ── Fetch orders ─────────────────────────────────────────────
   const fetchOrders = async () => {
@@ -87,7 +89,7 @@ export default function OrderHistory({ user, onBack }) {
 
       {/* ── Tab Bar ───────────────────────────────────────────── */}
       <div className="oh-tabs">
-        {["all", "pending", "checking", "completed", "rejected"].map((tab) => (
+        {["all", "pending", "checking", "completed", "rejected","cancelled"].map((tab) => (
           <button
             key={tab}
             className={`oh-tab ${activeTab === tab ? "active" : ""}`}
@@ -152,9 +154,11 @@ export default function OrderHistory({ user, onBack }) {
 //  OrderCard
 // ══════════════════════════════════════════════════════════════
 function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
+  console.log("order status:", order.status);
   const [uploading,    setUploading]    = useState(false);
   const [downloading,  setDownloading]  = useState(false);
   const [dragOver,     setDragOver]     = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const fileRef = useRef(null);
 
   const st = STATUS[order.status] || STATUS.pending;
@@ -197,6 +201,22 @@ function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
       setDownloading(false);
     }
   };
+
+  const [cancelling, setCancelling] = useState(false);
+  
+  const handleCancel = async () => {
+  setCancelling(true);
+  try {
+    await cancelOrder(order.orderId);
+    showToast("✓ Order cancelled", "success");
+    onRefresh();
+  } catch (e) {
+    showToast(`✗ ${e.message}`, "error");
+  } finally {
+    setCancelling(false);
+    setShowConfirm(false);
+  }
+};
 
   return (
     <div className={`oh-card ${expanded ? "expanded" : ""}`}>
@@ -276,6 +296,28 @@ function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
                 <p>{uploading ? "Uploading…" : "Click or drag & drop slip image"}</p>
                 <span>JPEG · PNG · WEBP · max 10 MB</span>
               </div>
+                <button
+                  className="oh-cancel-btn"
+                  onClick={() => setShowConfirm(true)}
+                  disabled={cancelling}
+                >
+                  {cancelling ? "Cancelling…" : "✗ Cancel Order"}
+                </button>
+
+                {showConfirm && (
+                  <div className="oh-confirm-overlay">
+                  <div className="oh-confirm-box">
+                  <p>Cancel this order?</p>
+                  <div className="oh-confirm-actions">
+                  <button className="oh-confirm-no" onClick={() => setShowConfirm(false)}>Keep</button>
+                  <button className="oh-confirm-yes" onClick={handleCancel} disabled={cancelling}>
+                  {cancelling ? "Cancelling…" : "Yes, Cancel"}
+                
+                </button>
+              </div>
+            </div>
+          </div>
+          )}
             </div>
           )}
 
