@@ -21,6 +21,7 @@ const IMAGE_CATEGORIES = [
   'fashion',
   'sports',
   'other',
+  'illustration'
 ];
 
 const createImageDocument = ({

@@ -78,7 +78,9 @@ const getMyOrders = async (req, res) => {
 
     const data = orders.map((o) => ({
       orderId: o.id,
+      imageId: o.imageId,
       imageName: o.imageName,
+      price: o.totalAmount,
       status: o.status,
       orderDate: o.createdAt,
     }));
@@ -122,4 +124,18 @@ const getDownloadUrl = async (req, res) => {
   }
 };
 
-module.exports = { createOrder, uploadSlip, getMyOrders, getDownloadUrl };
+const cancelOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await orderService.cancelOrder({ orderId: id, userId: req.user.uid });
+    return sendSuccess(res, 200, 'Order cancelled successfully', { status: 'cancelled' });
+  } catch (err) {
+    if (err.message === 'ORDER_NOT_FOUND') return sendError(res, 404, 'Order not found');
+    if (err.message === 'FORBIDDEN') return sendError(res, 403, 'Access denied');
+    if (err.message === 'INVALID_STATUS') return sendError(res, 409, 'Only pending orders can be cancelled');
+    console.error('[cancelOrder]', err);
+    return sendError(res, 500, 'Failed to cancel order');
+  }
+};
+
+module.exports = { createOrder, uploadSlip, getMyOrders, getDownloadUrl, cancelOrder };

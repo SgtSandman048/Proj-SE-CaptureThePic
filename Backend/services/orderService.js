@@ -40,7 +40,7 @@ const createOrder = async ({ userId, imageId }) => {
   const orderData = {
     userId,
     imageId,
-    imageName: image.name,
+    imageName: image.imageName,
     totalAmount,
     status: 'pending',
     slipUrl: null,

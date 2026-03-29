@@ -11,6 +11,8 @@ const {
   getImageDetail,
   deleteImage,
   getMyImages,
+  updateImage,
+  //updateImageDetail,
 } = require('../controllers/imageController');
 
 const { authenticate, optionalAuthenticate } = require('../middleware/authMiddleware');
@@ -28,6 +30,34 @@ const upload = multer({
     cb(new Error('Invalid file type. Only JPEG, PNG, WEBP, and TIFF are allowed.'), false);
   },
 });
+
+const updateValidators = [
+  body('imageName')
+    .optional()
+    .trim()
+    .isLength({ min: 3, max: 100 })
+    .withMessage('imageName must be 3–100 characters'),
+
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('description must be under 1000 characters'),
+
+  body('price')
+    .optional()
+    .isFloat({ min: 0, max: 100000 })
+    .withMessage('price must be between 0 and 100,000 THB'),
+
+  body('category')
+    .optional()
+    .custom((val) => {
+      if (!IMAGE_CATEGORIES.includes(val.toLowerCase())) {
+        throw new Error(`category must be one of: ${IMAGE_CATEGORIES.join(', ')}`);
+      }
+      return true;
+    }),
+];
 
 const uploadValidators = [
   body('imageName')
@@ -67,6 +97,8 @@ router.post('/upload',
 router.get('/my', authenticate, requireUser, getMyImages);
 
 router.get('/:id', optionalAuthenticate, getImageDetail);
+
+router.patch('/:id', authenticate, requireUser, updateValidators, updateImage);
 
 router.delete('/:id', authenticate, deleteImage);
 

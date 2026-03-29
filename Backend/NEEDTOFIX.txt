@@ -1,3 +1,0 @@
-1. Old Login Token still usable after logging out. (Redis doesn't work properly.)
-2. ChangePass haven't tested yet. (Does it count as bug?)
-3. Watermark name need to be changed.

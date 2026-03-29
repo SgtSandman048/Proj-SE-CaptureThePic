@@ -1,49 +1,29 @@
+// pages/OrderHistory.jsx
+// Displays the current user's orders and allows slip upload / download.
+
 import { useState, useEffect, useRef } from "react";
 import { getMyOrders, uploadSlip, getDownloadUrl, cancelOrder } from "../services/orderService";
-import "./OrderHistory.css";
+import { useToast } from "../hooks/useToast";
+import Toast from "../components/common/Toast";
+import { formatDate, formatTHB } from "../utils/format";
+import "../assets/styles/OrderHistory.css";
 
-// ── Status config ──────────────────────────────────────────────
 const STATUS = {
-  pending:   { label: "Pending",    color: "#f59e0b", bg: "rgba(245,158,11,0.12)",  icon: "⏳" },
-  checking:  { label: "Checking",   color: "#3b82f6", bg: "rgba(59,130,246,0.12)",  icon: "🔍" },
-  completed: { label: "Completed",  color: "#10b981", bg: "rgba(16,185,129,0.12)",  icon: "✓"  },
-  rejected:  { label: "Rejected",   color: "#ef4444", bg: "rgba(239,68,68,0.12)",   icon: "✗"  },
-  cancelled: { label: "Cancelled",  color: "#6b7280", bg: "rgba(107,114,128,0.12)", icon: "🚫" },
-};;
-
-const formatDate = (iso) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d)) return "—";
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  pending:   { label: "Pending",   color: "#f59e0b", bg: "rgba(245,158,11,0.12)",  icon: "⏳" },
+  checking:  { label: "Checking",  color: "#3b82f6", bg: "rgba(59,130,246,0.12)",  icon: "🔍" },
+  completed: { label: "Completed", color: "#10b981", bg: "rgba(16,185,129,0.12)",  icon: "✓"  },
+  rejected:  { label: "Rejected",  color: "#ef4444", bg: "rgba(239,68,68,0.12)",   icon: "✗"  },
+  cancelled: { label: "Cancelled", color: "#6b7280", bg: "rgba(107,114,128,0.12)", icon: "🚫" },
 };
 
-const formatTHB = (n) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n ?? 0);
+export default function OrderHistory({ onBack }) {
+  const [orders,     setOrders]     = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(null);
+  const [activeTab,  setActiveTab]  = useState("all");
+  const [expandedId, setExpandedId] = useState(null);
+  const { toast, showToast }        = useToast();
 
-// ── Toast hook ─────────────────────────────────────────────────
-function useToast() {
-  const [toast, setToast] = useState({ visible: false, msg: "", type: "info" });
-  const show = (msg, type = "info") => {
-    setToast({ visible: true, msg, type });
-    setTimeout(() => setToast((t) => ({ ...t, visible: false })), 3000);
-  };
-  return { toast, show };
-}
-
-// ══════════════════════════════════════════════════════════════
-//  OrderHistory Page
-// ══════════════════════════════════════════════════════════════
-export default function OrderHistory({ user, onBack }) {
-  const [orders,      setOrders]      = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState(null);
-  const [activeTab,   setActiveTab]   = useState("all");
-  const [expandedId,  setExpandedId]  = useState(null);
-  const { toast, show: showToast }    = useToast();
-  
-
-  // ── Fetch orders ─────────────────────────────────────────────
   const fetchOrders = async () => {
     setLoading(true);
     setError(null);
@@ -59,58 +39,38 @@ export default function OrderHistory({ user, onBack }) {
 
   useEffect(() => { fetchOrders(); }, []);
 
-  // ── Filter by tab ────────────────────────────────────────────
-  const filtered = activeTab === "all"
-    ? orders
-    : orders.filter((o) => o.status === activeTab);
+  const filtered = activeTab === "all" ? orders : orders.filter((o) => o.status === activeTab);
+  const counts   = orders.reduce((acc, o) => { acc[o.status] = (acc[o.status] || 0) + 1; return acc; }, {});
 
-  const counts = orders.reduce((acc, o) => {
-    acc[o.status] = (acc[o.status] || 0) + 1;
-    return acc;
-  }, {});
-
-  // ─────────────────────────────────────────────────────────────
   return (
     <div className="oh-page">
-
-      {/* ── Header ────────────────────────────────────────────── */}
       <header className="oh-header">
-        <button className="oh-back-btn" onClick={onBack}>
-          ← Back
-        </button>
+        <button className="oh-back-btn" onClick={onBack}>← Back</button>
         <div className="oh-header-center">
           <h1>My Orders</h1>
           <p className="oh-subtitle">Track your purchases and download originals</p>
         </div>
-        <button className="oh-refresh-btn" onClick={fetchOrders} title="Refresh">
-          ↻
-        </button>
+        <button className="oh-refresh-btn" onClick={fetchOrders} title="Refresh">↻</button>
       </header>
 
-      {/* ── Tab Bar ───────────────────────────────────────────── */}
       <div className="oh-tabs">
-        {["all", "pending", "checking", "completed", "rejected","cancelled"].map((tab) => (
+        {["all", "pending", "checking", "completed", "rejected", "cancelled"].map((tab) => (
           <button
             key={tab}
             className={`oh-tab ${activeTab === tab ? "active" : ""}`}
             onClick={() => setActiveTab(tab)}
           >
-            {tab === "all" ? "All" : STATUS[tab]?.icon + " " + STATUS[tab]?.label}
+            {tab === "all" ? "All" : `${STATUS[tab]?.icon} ${STATUS[tab]?.label}`}
             {tab === "all"
               ? <span className="oh-tab-count">{orders.length}</span>
-              : counts[tab]
-              ? <span className="oh-tab-count">{counts[tab]}</span>
-              : null}
+              : counts[tab] ? <span className="oh-tab-count">{counts[tab]}</span> : null}
           </button>
         ))}
       </div>
 
-      {/* ── Content ───────────────────────────────────────────── */}
       <div className="oh-content">
         {loading ? (
-          <div className="oh-loading">
-            {[1,2,3].map((i) => <div key={i} className="oh-skeleton" />)}
-          </div>
+          <div className="oh-loading">{[1, 2, 3].map((i) => <div key={i} className="oh-skeleton" />)}</div>
         ) : error ? (
           <div className="oh-error">
             <span>⚠</span>
@@ -130,9 +90,7 @@ export default function OrderHistory({ user, onBack }) {
                 key={order.orderId}
                 order={order}
                 expanded={expandedId === order.orderId}
-                onToggle={() => setExpandedId(
-                  expandedId === order.orderId ? null : order.orderId
-                )}
+                onToggle={() => setExpandedId(expandedId === order.orderId ? null : order.orderId)}
                 onRefresh={fetchOrders}
                 showToast={showToast}
               />
@@ -141,41 +99,47 @@ export default function OrderHistory({ user, onBack }) {
         )}
       </div>
 
-      {/* ── Toast ─────────────────────────────────────────────── */}
-      <div className={`oh-toast oh-toast--${toast.type} ${toast.visible ? "visible" : ""}`}>
-        {toast.msg}
-      </div>
-
+      <Toast toast={toast} />
     </div>
   );
 }
 
-// ══════════════════════════════════════════════════════════════
-//  OrderCard
-// ══════════════════════════════════════════════════════════════
+// ── CopyField ──────────────────────────────────────────────────
+function CopyField({ value }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  };
+  return (
+    <button className={`oh-copy-field ${copied ? "copied" : ""}`} onClick={copy} type="button">
+      <span className="oh-copy-value">{value}</span>
+      <span className="oh-copy-icon">{copied ? "✓" : "⧉"}</span>
+    </button>
+  );
+}
+
+// ── OrderCard ──────────────────────────────────────────────────
 function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
-  console.log("order status:", order.status);
-  const [uploading,    setUploading]    = useState(false);
-  const [downloading,  setDownloading]  = useState(false);
-  const [dragOver,     setDragOver]     = useState(false);
+  const [uploading,   setUploading]   = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [dragOver,    setDragOver]    = useState(false);
+  const [cancelling,  setCancelling]  = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const fileRef = useRef(null);
 
   const st = STATUS[order.status] || STATUS.pending;
 
-  // ── Upload slip ──────────────────────────────────────────────
   const handleUpload = async (file) => {
     if (!file) return;
-    const allowed = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowed.includes(file.type)) {
-      showToast("✗ Only JPEG, PNG, WEBP allowed", "error");
-      return;
+    if (!["image/jpeg", "image/png", "image/webp", "image/jpg"].includes(file.type)) {
+      showToast("✗ Only JPEG, PNG, WEBP allowed", "error"); return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      showToast("✗ File too large (max 10 MB)", "error");
-      return;
+      showToast("✗ File too large (max 10 MB)", "error"); return;
     }
-
     setUploading(true);
     try {
       await uploadSlip(order.orderId, file);
@@ -188,7 +152,6 @@ function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
     }
   };
 
-  // ── Download original ────────────────────────────────────────
   const handleDownload = async () => {
     setDownloading(true);
     try {
@@ -202,32 +165,24 @@ function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
     }
   };
 
-  const [cancelling, setCancelling] = useState(false);
-  
   const handleCancel = async () => {
-  setCancelling(true);
-  try {
-    await cancelOrder(order.orderId);
-    showToast("✓ Order cancelled", "success");
-    onRefresh();
-  } catch (e) {
-    showToast(`✗ ${e.message}`, "error");
-  } finally {
-    setCancelling(false);
-    setShowConfirm(false);
-  }
-};
+    setCancelling(true);
+    try {
+      await cancelOrder(order.orderId);
+      showToast("✓ Order cancelled", "success");
+      onRefresh();
+    } catch (e) {
+      showToast(`✗ ${e.message}`, "error");
+    } finally {
+      setCancelling(false);
+      setShowConfirm(false);
+    }
+  };
 
   return (
     <div className={`oh-card ${expanded ? "expanded" : ""}`}>
-
-      {/* ── Card Header (always visible) ────────────────────── */}
       <div className="oh-card-header" onClick={onToggle}>
-
-        <div className="oh-card-thumb">
-          🖼
-        </div>
-
+        <div className="oh-card-thumb">🖼</div>
         <div className="oh-card-info">
           <div className="oh-card-name">{order.imageName || "Untitled Image"}</div>
           <div className="oh-card-meta">
@@ -235,102 +190,90 @@ function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
             <span className="oh-card-id">#{order.orderId?.slice(-8)}</span>
           </div>
         </div>
-
         <div className="oh-card-right">
-          <span
-            className="oh-status-badge"
-            style={{ color: st.color, background: st.bg }}
-          >
+          <span className="oh-status-badge" style={{ color: st.color, background: st.bg }}>
             {st.icon} {st.label}
           </span>
           <span className="oh-chevron">{expanded ? "▲" : "▼"}</span>
         </div>
       </div>
 
-      {/* ── Expanded Panel ──────────────────────────────────── */}
       {expanded && (
         <div className="oh-card-body">
-
-          <div className="oh-card-detail-row">
-            <span>Order ID</span>
-            <span className="mono">{order.orderId}</span>
-          </div>
-          <div className="oh-card-detail-row">
-            <span>Order Date</span>
-            <span>{formatDate(order.orderDate)}</span>
-          </div>
-          <div className="oh-card-detail-row">
-            <span>Status</span>
-            <span style={{ color: st.color }}>{st.icon} {st.label}</span>
-          </div>
-
+          <div className="oh-card-detail-row"><span>Order ID</span><span className="mono">{order.orderId}</span></div>
+          <div className="oh-card-detail-row"><span>Order Date</span><span>{formatDate(order.orderDate)}</span></div>
+          <div className="oh-card-detail-row"><span>Status</span><span style={{ color: st.color }}>{st.icon} {st.label}</span></div>
           <div className="oh-card-divider" />
 
-          {/* ── Status: pending → show upload slip ──────────── */}
           {order.status === "pending" && (
             <div className="oh-slip-zone">
-          {/* ── QR Code ── */}
-          <div className="oh-qr-section">
-            <p className="oh-slip-title">Scan to Pay</p>
-            <p className="oh-slip-hint">Scan the QR code below to make your payment.</p>
-          <div className="oh-qr-box">
-            <img
-              src="https://res.cloudinary.com/dw4bi2d8a/image/upload/v1772868215/645709013_2150592682449296_1042520382335589631_n_ujmnyk.jpg"
-              alt="Payment QR Code"
-              className="oh-qr-img"
-            />
-            </div>
-          </div>
-        <div className="oh-card-divider" />
-          <p className="oh-slip-title">Upload Payment Slip</p>
+              <div className="oh-qr-section">
+                <p className="oh-slip-title">Payment Details</p>
+                <p className="oh-slip-hint">Transfer the exact amount then upload your slip below.</p>
+                <div className="oh-payment-panel">
+                  <div className="oh-payment-qr">
+                    <div className="oh-qr-label">PromptPay QR</div>
+                    <div className="oh-qr-box">
+                      <img
+                        src="https://res.cloudinary.com/dw4bi2d8a/image/upload/v1772868215/645709013_2150592682449296_1042520382335589631_n_ujmnyk.jpg"
+                        alt="Payment QR Code"
+                        className="oh-qr-img"
+                      />
+                    </div>
+                  </div>
+                  <div className="oh-bank-info">
+                    <div className="oh-bank-row oh-bank-header">
+                      <span className="oh-bank-logo">🏦</span>
+                      <span className="oh-bank-name">Bangkok Bank</span>
+                    </div>
+                    <div className="oh-bank-divider" />
+                    <div className="oh-bank-row"><span className="oh-bank-label">Account Name</span><span className="oh-bank-value">Thanakrit Muangrak</span></div>
+                    <div className="oh-bank-row"><span className="oh-bank-label">Account No.</span><CopyField value="123-4-56789-0" /></div>
+                    <div className="oh-bank-row"><span className="oh-bank-label">PromptPay</span><CopyField value="098-765-4321" /></div>
+                    <div className="oh-bank-divider" />
+                    <div className="oh-bank-row oh-amount-row">
+                      <span className="oh-bank-label">Amount to Pay</span>
+                      <span className="oh-amount-value">{formatTHB(order.price)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="oh-card-divider" />
+              <p className="oh-slip-title">Upload Payment Slip</p>
               <div
                 className={`oh-drop-zone ${dragOver ? "drag-over" : ""}`}
                 onClick={() => fileRef.current?.click()}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragOver(false);
-                  handleUpload(e.dataTransfer.files[0]);
-                }}
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); handleUpload(e.dataTransfer.files[0]); }}
               >
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  style={{ display: "none" }}
-                  onChange={(e) => handleUpload(e.target.files[0])}
-                />
+                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={(e) => handleUpload(e.target.files[0])} />
                 <div className="oh-drop-icon">📎</div>
                 <p>{uploading ? "Uploading…" : "Click or drag & drop slip image"}</p>
                 <span>JPEG · PNG · WEBP · max 10 MB</span>
               </div>
-                <button
-                  className="oh-cancel-btn"
-                  onClick={() => setShowConfirm(true)}
-                  disabled={cancelling}
-                >
-                  {cancelling ? "Cancelling…" : "✗ Cancel Order"}
-                </button>
 
-                {showConfirm && (
-                  <div className="oh-confirm-overlay">
+              <button className="oh-cancel-btn" onClick={() => setShowConfirm(true)} disabled={cancelling}>
+                {cancelling ? "Cancelling…" : "✗ Cancel Order"}
+              </button>
+
+              {showConfirm && (
+                <div className="oh-confirm-overlay">
                   <div className="oh-confirm-box">
-                  <p>Cancel this order?</p>
-                  <div className="oh-confirm-actions">
-                  <button className="oh-confirm-no" onClick={() => setShowConfirm(false)}>Keep</button>
-                  <button className="oh-confirm-yes" onClick={handleCancel} disabled={cancelling}>
-                  {cancelling ? "Cancelling…" : "Yes, Cancel"}
-                
-                </button>
-              </div>
-            </div>
-          </div>
-          )}
+                    <p>Cancel this order?</p>
+                    <div className="oh-confirm-actions">
+                      <button className="oh-confirm-no" onClick={() => setShowConfirm(false)}>Keep</button>
+                      <button className="oh-confirm-yes" onClick={handleCancel} disabled={cancelling}>
+                        {cancelling ? "Cancelling…" : "Yes, Cancel"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* ── Status: checking ────────────────────────────── */}
           {order.status === "checking" && (
             <div className="oh-checking-banner">
               <span>🔍</span>
@@ -341,18 +284,12 @@ function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
             </div>
           )}
 
-          {/* ── Status: completed → show download ───────────── */}
           {order.status === "completed" && (
-            <button
-              className="oh-download-btn"
-              onClick={handleDownload}
-              disabled={downloading}
-            >
+            <button className="oh-download-btn" onClick={handleDownload} disabled={downloading}>
               {downloading ? "⏳ Preparing…" : "⬇ Download Original File"}
             </button>
           )}
 
-          {/* ── Status: rejected ────────────────────────────── */}
           {order.status === "rejected" && (
             <div className="oh-rejected-banner">
               <span>✗</span>
@@ -362,7 +299,6 @@ function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
               </div>
             </div>
           )}
-
         </div>
       )}
     </div>

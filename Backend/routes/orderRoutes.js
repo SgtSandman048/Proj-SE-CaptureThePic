@@ -28,5 +28,6 @@ router.get('/my-orders',          authenticate, orderController.getMyOrders);
 
 router.get('/:id/download',       authenticate, orderController.getDownloadUrl);
 
+router.delete('/:id', authenticate, orderController.cancelOrder);
 
 module.exports = router;

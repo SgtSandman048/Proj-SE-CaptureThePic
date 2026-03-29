@@ -1,52 +1,70 @@
-// src/services/orderService.js
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
-const getToken = () => localStorage.getItem("accessToken");
-const authHeaders = () => ({ Authorization: `Bearer ${getToken()}` });
+// services/orderService.js
+// All order-related API calls.
 
+import api from "./api";
+
+/**
+ * GET /orders/my-orders
+ * @returns {Array}
+ */
+export const getMyOrders = async () => {
+  const { data } = await api.get("/orders/my-orders");
+  if (!data.success) throw new Error(data.message || "Failed to load orders.");
+  return data.data || [];
+};
+
+/**
+ * POST /orders  — create a new order for an image.
+ * @param {string} imageId
+ * @returns {{ orderId: string }}
+ */
 export const createOrder = async (imageId) => {
-  const res = await fetch(`${API_BASE}/orders`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ imageId }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Failed to create order");
+  const { data } = await api.post("/orders", { imageId });
+  if (!data.success) throw new Error(data.message || "Order failed.");
   return data.data;
 };
 
+/**
+ * POST /orders/:orderId/upload-slip  — upload a payment slip image.
+ * @param {string} orderId
+ * @param {File}   file
+ */
 export const uploadSlip = async (orderId, file) => {
   const form = new FormData();
   form.append("slipFile", file);
-  const res = await fetch(`${API_BASE}/orders/${orderId}/upload-slip`, {
-    method: "PATCH",
-    headers: authHeaders(),
-    body: form,
+  const { data } = await api.patch(`/orders/${orderId}/upload-slip`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Failed to upload slip");
+  if (!data.success) throw new Error(data.message || "Slip upload failed.");
   return data.data;
 };
 
-export const getMyOrders = async () => {
-  const res = await fetch(`${API_BASE}/orders/my-orders`, { headers: authHeaders() });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Failed to fetch orders");
-  return data.data;
-};
-
+/**
+ * GET /orders/:orderId/download  — get a signed download URL.
+ * @param {string} orderId
+ * @returns {string}  signed URL
+ */
 export const getDownloadUrl = async (orderId) => {
-  const res = await fetch(`${API_BASE}/orders/${orderId}/download`, { headers: authHeaders() });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Download unavailable");
+  const { data } = await api.get(`/orders/${orderId}/download`);
+  if (!data.success) throw new Error(data.message || "Download failed.");
   return data.data.downloadUrl;
 };
 
+/**
+ * DELETE /orders/:orderId/
+ * @param {string} orderId
+ */
 export const cancelOrder = async (orderId) => {
-  const res = await fetch(`${API_BASE}/orders/${orderId}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Failed to cancel order");
+  const { data } = await api.delete(`/orders/${orderId}/`);
+  if (!data.success) throw new Error(data.message || "Cancel failed.");
   return data.data;
+};
+
+/**
+ * GET /notifications/count  — for admin badge.
+ * @returns {number}
+ */
+export const getNotificationCount = async () => {
+  const { data } = await api.get("/notifications/count");
+  return data.success ? (data.data?.count ?? 0) : 0;
 };

@@ -1,0 +1,165 @@
+/* components/layout/Sidebar.css */
+/* Share Sidebar styles between user-admin layouts. */
+
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Brand row */
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-brand .brand-mark {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.sidebar-brand .admin-mark { background: #f59e0b; }
+.sidebar-brand .brand-text {
+  font-family: var(--serif, 'Playfair Display', serif);
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text-hi);
+  letter-spacing: -0.3px;
+}
+.admin-badge {
+  font-size: 9px;
+  font-family: monospace;
+  letter-spacing: 1.5px;
+  background: rgba(245,158,11,0.15);
+  border: 1px solid rgba(245,158,11,0.3);
+  color: #f59e0b;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+/* Nav links */
+.nav-links {
+  padding: 10px 0;
+  flex: 1;
+}
+.nav-links a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-lo);
+  text-decoration: none;
+  padding: 11px 20px;
+  font-size: 13.5px;
+  font-weight: 400;
+  transition: background 0.15s, color 0.15s;
+  border-left: 2px solid transparent;
+  position: relative;
+}
+.nav-links a:hover { color: var(--text-mid); background: rgba(255,255,255,0.03); }
+.nav-links a.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-left-color: var(--accent);
+  font-weight: 500;
+}
+
+.nav-section-label {
+  padding: 16px 20px 6px;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-mute);
+  font-family: var(--mono, 'DM Mono', monospace);
+  display: block;
+}
+
+/* Notification badge on nav item */
+.nav-notif-badge {
+  margin-left: auto;
+  background: #f59e0b;
+  color: #000;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* Preference submenu */
+.pref-submenu {
+  overflow: hidden;
+  background: var(--bg-raised);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin: 4px 0;
+}
+.tag-group { border-bottom: 1px solid var(--border); }
+.tag-group:last-child { border-bottom: none; }
+.tag-header {
+  cursor: pointer;
+  color: var(--text-lo);
+  padding: 9px 20px;
+  font-size: 12.5px;
+  font-weight: 500;
+  display: flex; align-items: center; gap: 8px;
+  transition: color 0.2s, background 0.15s;
+}
+.tag-header:hover { color: var(--accent); background: rgba(79,195,195,0.05); }
+.subtags {
+  display: flex; flex-direction: column;
+  padding: 4px 20px 10px 36px;
+  gap: 6px;
+}
+.subtags label {
+  font-size: 12px; color: var(--text-mute);
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+  transition: color 0.15s;
+}
+.subtags label:hover { color: var(--text-lo); }
+.subtags input[type="checkbox"] { accent-color: var(--accent); width: 12px; height: 12px; }
+
+/* User account section */
+.user-account {
+  margin-top: auto;
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--border);
+}
+.user-label {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: 2px;
+  color: var(--text-mute); font-family: var(--mono, monospace); margin-bottom: 10px;
+}
+.profile {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+}
+.profile-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--bg-hover);
+  border: 1.5px solid rgba(79,195,195,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; flex-shrink: 0;
+}
+.admin-avatar { border-color: rgba(245,158,11,0.4); }
+.profile-name { font-size: 13px; font-weight: 500; color: var(--text-mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-role { font-size: 10px; color: var(--text-mute); font-family: var(--mono, monospace); }
+.admin-role-tag { color: #f59e0b; }
+.settings {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--text-mute); text-decoration: none;
+  font-size: 12px; padding: 6px 0;
+  transition: color 0.2s; cursor: pointer;
+}
+.settings:hover { color: var(--text-lo); }
+.settings.logout-btn:hover { color: #f87171; }

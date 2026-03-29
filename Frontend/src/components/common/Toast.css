@@ -1,0 +1,24 @@
+/* components/common/Toast.css */
+
+.toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s;
+  z-index: 9999;
+  white-space: nowrap;
+}
+.toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.toast--success { background: #065f46; color: #6ee7b7; border: 1px solid #059669; }
+.toast--error   { background: #7f1d1d; color: #fca5a5; border: 1px solid #dc2626; }
+.toast--info    { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; }
