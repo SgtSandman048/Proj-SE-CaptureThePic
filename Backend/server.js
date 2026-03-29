@@ -12,13 +12,14 @@ const authRoutes = require('./routes/authRoutes');
 const imageRoutes = require('./routes/imageRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');  // ← add this
 const { sendError } = require('./utils/apiResponse');
 
 const PORT = process.env.PORT || 8080;
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:5174',
+  origin: 'http://localhost:5173',
   credentials: true,
 }));
 app.use(express.json());
@@ -29,12 +30,12 @@ app.get('/', (req, res) => {
   res.send('Photo Market Backend API is running...');
 });
 
-
 // Routes Call
 app.use('/api/auth', authRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);  // ← add this
 
 
 // Error Handler
