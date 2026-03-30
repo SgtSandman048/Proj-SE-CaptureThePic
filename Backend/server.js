@@ -12,6 +12,7 @@ const authRoutes = require('./routes/authRoutes');
 const imageRoutes = require('./routes/imageRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const { sendError } = require('./utils/apiResponse');
 
 const PORT = process.env.PORT || 8080;
 
