@@ -14,6 +14,7 @@ const {
   //changePassword,
 } = require('../controllers/authController');
 const { authenticate } = require('../middleware/authMiddleware');
+const { checkBan } = require('../middleware/banMiddleware');
 
 // Login Limitation
 const authLimiter = rateLimit({
@@ -74,9 +75,9 @@ router.post('/login', authLimiter, loginValidators, login);
 
 router.post('/refresh-token', refreshToken);
 
-router.post('/logout', authenticate, logout);
+router.post('/logout', authenticate, checkBan, logout);
 
-router.get('/me', authenticate, getMe);
+router.get('/me', authenticate, checkBan, getMe);
 
 //router.post('/change-password', authenticate, changePasswordValidators, changePassword);
 

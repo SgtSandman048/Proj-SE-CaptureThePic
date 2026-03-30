@@ -3,6 +3,7 @@
 const { db: getDb } = require('../config/firebase');
 const { cloudinary, generateSignedUrl } = require('../config/cloudinary');
 const { calculatePrice } = require('../utils/priceCalculator');
+const { createNotification } = require('./notificationService');
 
 const db = getDb();
 
@@ -50,6 +51,20 @@ const createOrder = async ({ userId, imageId }) => {
 
   await orderRef.set(orderData);
 
+  // 5. Notify buyer — purchase created
+  await createNotification(userId, {
+    type: 'purchase_complete',
+    message: `Your order for "${image.imageName}" has been placed successfully`,
+  });
+
+  // 6. Notify seller — someone bought their photo
+  if (image.sellerId && image.sellerId !== userId) {
+    await createNotification(image.sellerId, {
+      type: 'photo_sold',
+      message: `Someone purchased your photo "${image.imageName}"`,
+    });
+  }
+
   return { id: orderRef.id, ...orderData };
 };
 
@@ -87,6 +102,12 @@ const uploadSlip = async ({ orderId, userId, file }) => {
     status: 'checking',
     updatedAt: new Date().toISOString(),
   });
+
+  // Notify buyer — slip received, waiting for verification
+  await createNotification(userId, {
+    type: 'payment_received',
+    message: `Your payment slip for "${order.imageName}" has been received and is being verified`,
+  });
 };
 
 
@@ -114,7 +135,6 @@ const getDownloadUrl = async ({ orderId, userId }) => {
   if (order.userId !== userId) throw new Error('FORBIDDEN');
   if (order.status !== 'completed') throw new Error('NOT_COMPLETED');
 
-  // Fetch the image to get the original Cloudinary URL
   const imageSnap = await db.collection(IMAGES_COL).doc(order.imageId).get();
   const image = imageSnap.data();
   if (!image.originalPublicId) throw new Error('ORIGINAL_NOT_FOUND');
@@ -123,6 +143,27 @@ const getDownloadUrl = async ({ orderId, userId }) => {
 
   return downloadUrl;
 };
+
+// Return the watermarked URL
+const getWatermarkedUrl = async ({ orderId, userId }) => {
+  const orderRef = db.collection(ORDERS_COL).doc(orderId);
+  const orderSnap = await orderRef.get();
+  
+  if (!orderSnap.exists) throw new Error('ORDER_NOT_FOUND');
+
+  const order = orderSnap.data();
+
+  if (order.userId !== userId) throw new Error('FORBIDDEN');
+
+  const imageSnap = await db.collection(IMAGES_COL).doc(order.imageId).get();
+  const image = imageSnap.data();
+  if (!image.watermarkPublicId) throw new Error('WATERMARKED_NOT_FOUND');
+
+  const downloadUrl = image.watermarkUrl;
+
+  return downloadUrl;
+}
+
 
 const cancelOrder = async ({ orderId, userId }) => {
   const orderRef = db.collection(ORDERS_COL).doc(orderId);
@@ -141,4 +182,4 @@ const cancelOrder = async ({ orderId, userId }) => {
   });
 };
 
-module.exports = { createOrder, uploadSlip, getOrdersByUser, getDownloadUrl, cancelOrder };
+module.exports = { createOrder, uploadSlip, getOrdersByUser, getDownloadUrl, getWatermarkedUrl, cancelOrder };

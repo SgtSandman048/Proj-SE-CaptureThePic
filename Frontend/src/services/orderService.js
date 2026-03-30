@@ -25,7 +25,7 @@ export const createOrder = async (imageId) => {
 };
 
 /**
- * POST /orders/:orderId/upload-slip  — upload a payment slip image.
+ * PATCH /orders/:orderId/upload-slip  — upload a payment slip image.
  * @param {string} orderId
  * @param {File}   file
  */
@@ -46,6 +46,12 @@ export const uploadSlip = async (orderId, file) => {
  */
 export const getDownloadUrl = async (orderId) => {
   const { data } = await api.get(`/orders/${orderId}/download`);
+  if (!data.success) throw new Error(data.message || "Download failed.");
+  return data.data.downloadUrl;
+};
+
+export const getWatermarkedUrl = async (orderId) => {
+  const { data } = await api.get(`/orders/${orderId}/watermark`);
   if (!data.success) throw new Error(data.message || "Download failed.");
   return data.data.downloadUrl;
 };

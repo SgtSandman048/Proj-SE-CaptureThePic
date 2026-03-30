@@ -2,7 +2,7 @@
 // Displays the current user's orders and allows slip upload / download.
 
 import { useState, useEffect, useRef } from "react";
-import { getMyOrders, uploadSlip, getDownloadUrl, cancelOrder } from "../services/orderService";
+import { getMyOrders, uploadSlip, getDownloadUrl, cancelOrder, getWatermarkedUrl } from "../services/orderService";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/common/Toast";
 import { formatDate, formatTHB } from "../utils/format";
@@ -165,6 +165,19 @@ function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
     }
   };
 
+  const handleWatermarked = async () => {
+    setDownloading(true);
+    try {
+      const url = await getWatermarkedUrl(order.orderId);
+      window.open(url, "_blank");
+      showToast("✓ Download started", "success");
+    } catch (e) {
+      showToast(`✗ ${e.message}`, "error");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const handleCancel = async () => {
     setCancelling(true);
     try {
@@ -223,13 +236,13 @@ function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
                   </div>
                   <div className="oh-bank-info">
                     <div className="oh-bank-row oh-bank-header">
-                      <span className="oh-bank-logo">🏦</span>
-                      <span className="oh-bank-name">Bangkok Bank</span>
+                      <span className="oh-bank-name">Bank Account</span>
+
                     </div>
                     <div className="oh-bank-divider" />
                     <div className="oh-bank-row"><span className="oh-bank-label">Account Name</span><span className="oh-bank-value">Thanakrit Muangrak</span></div>
-                    <div className="oh-bank-row"><span className="oh-bank-label">Account No.</span><CopyField value="123-4-56789-0" /></div>
-                    <div className="oh-bank-row"><span className="oh-bank-label">PromptPay</span><CopyField value="098-765-4321" /></div>
+                    <div className="oh-bank-row"><span className="oh-bank-label">Account No.</span><CopyField value="907-7-704782" /></div>
+                    <div className="oh-bank-row"><span className="oh-bank-label">Account Bank</span><span className="oh-bank-value">Bangkok Bank Public Company Limited</span></div>
                     <div className="oh-bank-divider" />
                     <div className="oh-bank-row oh-amount-row">
                       <span className="oh-bank-label">Amount to Pay</span>
@@ -253,6 +266,10 @@ function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
                 <p>{uploading ? "Uploading…" : "Click or drag & drop slip image"}</p>
                 <span>JPEG · PNG · WEBP · max 10 MB</span>
               </div>
+
+              <button className="oh-download-btn" onClick={handleWatermarked} disabled={downloading}>
+                {downloading ? "⏳ Preparing…" : "View Watermarked Image"}
+              </button>
 
               <button className="oh-cancel-btn" onClick={() => setShowConfirm(true)} disabled={cancelling}>
                 {cancelling ? "Cancelling…" : "✗ Cancel Order"}
@@ -295,9 +312,12 @@ function OrderCard({ order, expanded, onToggle, onRefresh, showToast }) {
               <span>✗</span>
               <div>
                 <strong>Payment Rejected</strong>
-                <p>Your slip could not be verified. Please contact support or try again.</p>
+                {/* <p></p> */}
+                <p>{order.adminNote || "Your slip could not be verified. Please contact support or try again."}</p>
               </div>
+              
             </div>
+            
           )}
         </div>
       )}

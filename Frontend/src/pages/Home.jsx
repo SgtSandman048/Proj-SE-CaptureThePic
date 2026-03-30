@@ -148,7 +148,7 @@ export default function Home({ onOrdersClick }) {
           </div>
 
           {/* Tab bar */}
-          <div className="gallery-tab-bar">
+          {/* <div className="gallery-tab-bar">
             {GALLERY_TABS.map((tab, i) => (
               <button
                 key={tab}
@@ -158,7 +158,7 @@ export default function Home({ onOrdersClick }) {
                 {tab}
               </button>
             ))}
-          </div>
+          </div> */}
 
           {/* Images */}
           {loadingImages ? (

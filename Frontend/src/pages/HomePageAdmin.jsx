@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import "./HomePageAdmin.css";
-import ImageDetailAdmin from "./ImageDetailAdmin";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const getToken = () => localStorage.getItem("accessToken");
 
 const FILTERS = ["All", "Nature", "Architecture", "People", "Abstract", "Animals", "Travel", "Food"];
@@ -55,52 +54,6 @@ export default function HomePageAdmin({ user, onLogout, onOrdersClick, onNotific
       .catch(() => {})
       .finally(() => setLoadingImages(false));
   }, [activeFilter, searchQuery]);
-
-  // ── If image selected → show admin detail view ──
-  if (selectedImageId) {
-    return (
-      <div className="app-container">
-        <aside className="sidebar">
-          <div className="sidebar-brand">
-            <div className="brand-mark admin-mark">⚙</div>
-            <span className="brand-text">Imagery</span>
-            <span className="admin-badge">ADMIN</span>
-          </div>
-          <nav className="nav-links">
-            <span className="nav-section-label">Menu</span>
-            <a href="#" onClick={(e) => { e.preventDefault(); setSelectedImageId(null); }}>🏠 Home</a>
-            <span className="nav-section-label" style={{ marginTop: 8 }}>Admin</span>
-            <a href="#" onClick={(e) => { e.preventDefault(); onNotificationsClick?.(); }}>🔔 Notifications</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); onOrdersClick?.(); }}>📦 My Orders</a>
-            <a href="#">👥 Users</a>
-            <a href="#">📊 Dashboard</a>
-            <a href="#">🗂 All Images</a>
-          </nav>
-          <div className="user-account">
-            <div className="user-label">Your Account</div>
-            <div className="profile">
-              <div className="profile-avatar admin-avatar">⚙</div>
-              <div>
-                <div className="profile-name">{user?.name ?? "Admin"}</div>
-                <div className="profile-role admin-role-tag">administrator</div>
-              </div>
-            </div>
-            {onLogout && (
-              <a href="#" className="settings logout-btn" onClick={(e) => { e.preventDefault(); onLogout(); }}>
-                🚪 Sign Out
-              </a>
-            )}
-          </div>
-        </aside>
-        <ImageDetailAdmin
-          imageId={selectedImageId}
-          user={user}
-          onBack={() => setSelectedImageId(null)}
-          onNavigate={(id) => setSelectedImageId(id)}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="app-container">

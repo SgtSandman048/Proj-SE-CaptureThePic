@@ -267,6 +267,7 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
                   <>
                     <button className="btn-buy" onClick={handleBuy} disabled={buying || !user} title={!user ? "Sign in to purchase" : ""}>
                       {buying ? "⏳ Processing…" : "🛒 Buy Now"}
+                      {/* {purchased ? "Purchased": "🛒 Buy Now"} */}
                     </button>
                     <button className="btn-wishlist" onClick={handleLike}>
                       {liked ? "❤ In Favourites" : "♡ Add to Favourites"}

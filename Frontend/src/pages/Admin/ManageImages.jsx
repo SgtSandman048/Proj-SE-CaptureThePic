@@ -17,6 +17,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../components/layout/Sidebar";
 import Toast from "../../components/common/Toast";
+import ManageUsers from "./ManageUsers";
 import ImageDetail from "../ImageDetail";
 import { getImages } from "../../services/imageService";
 import { getNotificationCount } from "../../services/orderService";
@@ -40,8 +41,10 @@ const TABS = [
   { id:"gallery",   label:"Gallery",          icon:"🖼"  },
   { id:"images",    label:"Image Moderation", icon:"🛡"  },
   { id:"orders",    label:"Order Moderation", icon:"💳" },
+  { id: "users",    label:"User Moderation",  icon: "👥" },
   { id:"dashboard", label:"Dashboard",        icon:"📊" },
 ];
+
 const ORDER_STATUS = {
   checking:  { label:"Checking",  icon:"🔍" },
   completed: { label:"Completed", icon:"✓"  },
@@ -79,7 +82,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
   }, [activeFilter, searchQuery, activeTab]);
  
   // Map internal tab IDs to sidebar activeNav values
-  const sidebarNav = { gallery: "home", images: "images", orders: "orders", dashboard: "dashboard" };
+  const sidebarNav = { gallery: "home", images: "images", orders: "orders", users: "users", dashboard: "dashboard" };
  
   const sharedSidebar = (
     <Sidebar user={user} isAdmin notifCount={notifCount}
@@ -88,6 +91,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
       onOrdersClick={() => setActiveTab("orders")}
       onNotificationsClick={onNotificationsClick}
       onImagesClick={() => setActiveTab("images")}
+      onUsersClick={() => setActiveTab("users")}
       onDashboardClick={() => setActiveTab("dashboard")}
       onLogout={logout} />
   );
@@ -122,7 +126,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
         </header>
  
         {/* Page tabs */}
-        <div className="admin-page-tabs">
+        {/* <div className="admin-page-tabs">
           {TABS.map((tab) => (
             <button key={tab.id}
               className={`admin-page-tab ${activeTab === tab.id ? "active" : ""}`}
@@ -132,7 +136,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
               {tab.id === "orders" && checkingCount > 0  && <span className="admin-tab-badge">{checkingCount}</span>}
             </button>
           ))}
-        </div>
+        </div> */}
  
         {/* Notification bar — gallery only */}
         {activeTab === "gallery" && (
@@ -155,6 +159,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
         {activeTab === "gallery"   && <GalleryTab images={images} loading={loadingImages} activeFilter={activeFilter} setActiveFilter={setActiveFilter} onImageClick={setSelectedImageId} />}
         {activeTab === "images"    && <ImageModerationTab showToast={showToast} onCountChange={setPendingImgCount} />}
         {activeTab === "orders"    && <OrderModerationTab showToast={showToast} onCountChange={setCheckingCount} />}
+        {activeTab === "users"     && <ManageUsers showToast={showToast} onNotificationsClick={onNotificationsClick}/>}
         {activeTab === "dashboard" && <DashboardTab onTabSwitch={setActiveTab} />}
       </main>
       <Toast toast={toast} />
@@ -576,6 +581,7 @@ function OrderModerationTab({ showToast, onCountChange }) {
     </div>
   );
 }
+ 
  
 // ════════════════════════════════════════════════════════════════
 // TAB 4 — Dashboard

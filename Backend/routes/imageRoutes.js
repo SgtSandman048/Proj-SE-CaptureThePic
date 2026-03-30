@@ -16,6 +16,7 @@ const {
 } = require('../controllers/imageController');
 
 const { authenticate, optionalAuthenticate } = require('../middleware/authMiddleware');
+const { checkBan } = require('../middleware/banMiddleware');
 const { /*requireSeller,*/ requireUser } = require('../middleware/roleMiddleware');
 const { uploadWatermarked, uploadOriginal } = require('../config/cloudinary');
 const { IMAGE_CATEGORIES } = require('../models/imageModel');
@@ -94,12 +95,12 @@ router.post('/upload',
   uploadImage
 );
 
-router.get('/my', authenticate, requireUser, getMyImages);
+router.get('/my', authenticate, checkBan, requireUser, getMyImages);
 
 router.get('/:id', optionalAuthenticate, getImageDetail);
 
-router.patch('/:id', authenticate, requireUser, updateValidators, updateImage);
+router.patch('/:id', authenticate, checkBan, requireUser, updateValidators, updateImage);
 
-router.delete('/:id', authenticate, deleteImage);
+router.delete('/:id', authenticate, checkBan, deleteImage);
 
 module.exports = router;

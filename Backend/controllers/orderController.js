@@ -82,6 +82,7 @@ const getMyOrders = async (req, res) => {
       imageName: o.imageName,
       price: o.totalAmount,
       status: o.status,
+      adminNote: o.adminNote,
       orderDate: o.createdAt,
     }));
 
@@ -124,6 +125,39 @@ const getDownloadUrl = async (req, res) => {
   }
 };
 
+//  GET /api/orders/:id/watermark
+const getWatermarked = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const downloadUrl = await orderService.getWatermarkedUrl({
+      orderId: id,
+      userId: req.user.uid,
+    });
+
+    return sendSuccess(res, 200, 'Download Watermarked URL retrieved', { downloadUrl });
+  } catch (err) {
+    if (err.message === 'ORDER_NOT_FOUND') {
+      return sendError(res, 404, 'Order not found');
+    }
+    if (err.message === 'FORBIDDEN') {
+      return sendError(res, 403, 'Access denied');
+    }
+    if (err.message === 'NOT_COMPLETED') {
+      return sendError(res, 403, 'Order is not yet completed');
+    }
+    if (err.message === 'IMAGE_NOT_FOUND') {
+      return sendError(res, 404, 'Image no longer exists');
+    }   
+    if (err.message === 'ORIGINAL_NOT_FOUND') {
+      return sendError(res, 404, 'Original file not available for this image');
+    }
+      console.error('[getDownloadUrl]', err);
+    return sendError(res, 500, 'Failed to get download URL');
+  }
+};
+
+
 const cancelOrder = async (req, res) => {
   try {
     const { id } = req.params;
@@ -138,4 +172,4 @@ const cancelOrder = async (req, res) => {
   }
 };
 
-module.exports = { createOrder, uploadSlip, getMyOrders, getDownloadUrl, cancelOrder };
+module.exports = { createOrder, uploadSlip, getMyOrders, getDownloadUrl, getWatermarked, cancelOrder };

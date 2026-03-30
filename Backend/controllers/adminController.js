@@ -1,50 +1,17 @@
 // controllers/adminController.js
-/* ─────────────────────────────────────────────────────────
- * Admin Operations — thin controller, all logic in adminService.
- *
- *  GET   /api/admin/orders          → getOrders      (list "checking" orders)
- *  PATCH /api/admin/orders/:id/verify → verifyOrder  (approve or reject)
- *
- * Also includes image moderation endpoints used by adminRoutes:
- *  GET  /api/admin/images/pending   → getPendingImages
- *  PUT  /api/admin/images/:id/approve
- *  PUT  /api/admin/images/:id/reject
- *  GET  /api/admin/dashboard
- */
+
 const { db: getDb }   = require('../config/firebase');
-const { getCheckingOrders, verifyOrder, getAllOrders } = require('../services/adminService');
+const { getCheckingOrders, verifyOrder, getAllOrders, approveImageAndNotify, rejectImageAndNotify,getAllUsers, getUserById, banUser, unbanUser, softDeleteUser, getUserActivity } = require('../services/adminService');
 const { getImageById, updateImage, getPendingImages } = require('../services/imageService');
 const { IMAGE_STATUS } = require('../models/imageModel');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
 
 const db = getDb();
 
-// ════════════════════════════════════════════════════════════════════════════
+//  Orders Moderation
+
 //  GET /api/admin/orders
 //  Fetch all orders with status "checking" — awaiting admin verification
-// ════════════════════════════════════════════════════════════════════════════
-/**
- * Optional query params:
- *   ?status=checking|pending|completed|rejected  (default: "checking")
- *   ?all=true                                    (return all statuses)
- *
- * Response 200:
- * {
- *   "orders": [
- *     {
- *       "orderId": "id",
- *       "userId":  "id",
- *       "slipUrl": "url",
- *       "status":  "checking",
- *       "imageName": "...",
- *       "totalAmount": 374.5,
- *       "createdAt": "ISO",
- *       "updatedAt": "ISO"
- *     }
- *   ],
- *   "count": 1
- * }
- */
 const getOrders = async (req, res) => {
   try {
     const { all, status } = req.query;
@@ -90,24 +57,8 @@ const getOrders = async (req, res) => {
   }
 };
 
-// ════════════════════════════════════════════════════════════════════════════
+
 //  PATCH /api/admin/orders/:id/verify
-//  Approve or reject a payment slip — changes order status
-// ════════════════════════════════════════════════════════════════════════════
-/**
- * Request body:
- * {
- *   "status": "completed" | "rejected",
- *   "note":   "optional reason (required for rejection)"
- * }
- *
- * Response 200:
- * {
- *   "message": "Order status updated",
- *   "orderId": "id",
- *   "status":  "completed"
- * }
- */
 const verifyOrderHandler = async (req, res) => {
   try {
     const { id }             = req.params;
@@ -157,9 +108,7 @@ const verifyOrderHandler = async (req, res) => {
   }
 };
 
-// ════════════════════════════════════════════════════════════════════════════
 //  Image Moderation
-// ════════════════════════════════════════════════════════════════════════════
 
 // GET /api/admin/images/pending
 const getPendingImagesList = async (req, res) => {
@@ -182,11 +131,7 @@ const approveImage = async (req, res) => {
       return sendError(res, 409, `Cannot approve image with status "${image.status}"`);
     }
 
-    await updateImage(req.params.id, {
-      status:     IMAGE_STATUS.APPROVED,
-      approvedAt: new Date().toISOString(),
-      adminNote:  null,
-    });
+    await approveImageAndNotify(req.params.id, req.user.uid);
 
     console.log(`[approveImage] Image approved: ${req.params.id} by admin:${req.user.uid}`);
     return sendSuccess(res, 200, 'Image approved and now live');
@@ -205,10 +150,7 @@ const rejectImage = async (req, res) => {
     const image = await getImageById(req.params.id);
     if (!image) return sendError(res, 404, 'Image not found');
 
-    await updateImage(req.params.id, {
-      status:    IMAGE_STATUS.REJECTED,
-      adminNote: reason.trim(),
-    });
+    await rejectImageAndNotify(req.params.id, reason, req.user.uid);
 
     return sendSuccess(res, 200, 'Image rejected', { reason: reason.trim() });
   } catch (error) {
@@ -217,9 +159,120 @@ const rejectImage = async (req, res) => {
   }
 };
 
-// ════════════════════════════════════════════════════════════════════════════
+//  User Moderation
+
+//  GET /api/admin/users
+const listUsers = async (req, res) => {
+  try {
+    const { search, role, banned, limit } = req.query;
+ 
+    const bannedFilter =
+      banned === 'true'  ? true  :
+      banned === 'false' ? false : null;
+ 
+    const users = await getAllUsers({
+      search: search || null,
+      role:   role   || null,
+      banned: bannedFilter,
+      limit:  parseInt(limit) || 100,
+    });
+ 
+    console.log(`[GET /admin/users] ${users.length} users | filters: ${JSON.stringify({ search, role, banned })}`);
+ 
+    return sendSuccess(res, 200, 'Users fetched successfully', {
+      users,
+      count: users.length,
+    });
+  } catch (err) {
+    console.error('[listUsers]', err);
+    return sendError(res, 500, 'Failed to fetch users');
+  }
+};
+
+//  GET /api/admin/users/:id
+const getUserDetail = async (req, res) => {
+  try {
+    const user = await getUserById(req.params.id);
+    return sendSuccess(res, 200, 'User fetched', user);
+  } catch (err) {
+    if (err.message === 'USER_NOT_FOUND') return sendError(res, 404, 'User not found');
+    console.error('[getUserDetail]', err);
+    return sendError(res, 500, 'Failed to fetch user');
+  }
+};
+
+//  GET /api/admin/users/:id/activity 
+const getUserActivityHandler = async (req, res) => {
+  try {
+    const activity = await getUserActivity(req.params.id);
+    return sendSuccess(res, 200, 'User activity fetched', activity);
+  } catch (err) {
+    if (err.message === 'USER_NOT_FOUND') return sendError(res, 404, 'User not found');
+    console.error('[getUserActivity]', err);
+    return sendError(res, 500, 'Failed to fetch activity');
+  }
+};
+ 
+//  PATCH /api/admin/users/:id/ban 
+const banUserHandler = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    await banUser(req.params.id, req.user.uid, reason || '');
+ 
+    console.log(`[PATCH /admin/users/${req.params.id}/ban] by admin:${req.user.uid}`);
+    return sendSuccess(res, 200, 'User banned successfully', {
+      userId: req.params.id,
+      isBanned: true,
+      banReason: reason?.trim() || 'Violation of platform policies.',
+    });
+  } catch (err) {
+    if (err.message === 'USER_NOT_FOUND')    return sendError(res, 404, 'User not found');
+    if (err.message === 'CANNOT_BAN_ADMIN') return sendError(res, 403, 'Cannot ban an admin account');
+    if (err.message === 'ALREADY_BANNED')   return sendError(res, 409, 'User is already banned');
+    console.error('[banUserHandler]', err);
+    return sendError(res, 500, 'Failed to ban user');
+  }
+};
+ 
+//  PATCH /api/admin/users/:id/unban 
+const unbanUserHandler = async (req, res) => {
+  try {
+    await unbanUser(req.params.id, req.user.uid);
+ 
+    console.log(`[PATCH /admin/users/${req.params.id}/unban] by admin:${req.user.uid}`);
+    return sendSuccess(res, 200, 'User unbanned successfully', {
+      userId: req.params.id,
+      isBanned: false,
+    });
+  } catch (err) {
+    if (err.message === 'USER_NOT_FOUND') return sendError(res, 404, 'User not found');
+    if (err.message === 'NOT_BANNED')     return sendError(res, 409, 'User is not currently banned');
+    console.error('[unbanUserHandler]', err);
+    return sendError(res, 500, 'Failed to unban user');
+  }
+};
+
+//  DELETE /api/admin/users/:id 
+const deleteUserHandler = async (req, res) => {
+  try {
+    await softDeleteUser(req.params.id, req.user.uid);
+ 
+    console.log(`[DELETE /admin/users/${req.params.id}] by admin:${req.user.uid}`);
+    return sendSuccess(res, 200, 'User account deleted', {
+      userId:    req.params.id,
+      isDeleted: true,
+    });
+  } catch (err) {
+    if (err.message === 'USER_NOT_FOUND')      return sendError(res, 404, 'User not found');
+    if (err.message === 'CANNOT_DELETE_ADMIN') return sendError(res, 403, 'Cannot delete an admin account');
+    console.error('[deleteUserHandler]', err);
+    return sendError(res, 500, 'Failed to delete user');
+  }
+};
+
 //  Dashboard
-// ════════════════════════════════════════════════════════════════════════════
+
+//  GET /api/admin/dashboard
 const getDashboard = async (req, res) => {
   try {
     const [usersSnap, approvedSnap, pendingImgSnap, completedSnap, checkingSnap] = await Promise.all([
@@ -253,5 +306,11 @@ module.exports = {
   getPendingImagesList,
   approveImage,
   rejectImage,
+  listUsers,
+  getUserDetail,
+  getUserActivityHandler,
+  banUserHandler,
+  unbanUserHandler,
+  deleteUserHandler,
   getDashboard,
 };

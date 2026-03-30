@@ -235,7 +235,7 @@ export default function UploadImage({ onBack, onSuccess }) {
                   <span className="price-symbol">฿</span>
                   <input type="number" min="0" max="100000" step="1" placeholder="0" value={price} onChange={(e) => setPrice(e.target.value)} disabled={uploading} />
                 </div>
-                <button type="button" className={`btn-free${price === "0" ? " active" : ""}`} onClick={() => setPrice("0")} disabled={uploading}>set as free</button>
+                <button type="button" className={`btn-free${price === 0 ? " active" : ""}`} onClick={() => setPrice("0")} disabled={uploading}>set as free</button>
               </div>
               <div className="price-hint">Set 0 or click "set as free" to publish at no cost</div>
             </div>

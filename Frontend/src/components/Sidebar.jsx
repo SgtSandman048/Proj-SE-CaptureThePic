@@ -1,18 +1,8 @@
 // components/layout/Sidebar.jsx
 // Shared sidebar between user-admin views.
 
-import { useState } from "react";
 import "./Sidebar.css";
-import NotificationBell from "../NotificationBell";
-
-const PREF_GROUPS = [
-  { icon: "🌿", label: "ธรรมชาติ",          tags: ["Nature","Landscape","Sea","Mountain","Forest","Flower"] },
-  { icon: "👤", label: "บุคคล",              tags: ["Portrait","Fashion","People","Lifestyle","Street Photography"] },
-  { icon: "🏢", label: "สถาปัตยกรรม",       tags: ["Architecture","Building","Interior","Cityscape","Minimalist"] },
-  { icon: "🍕", label: "อาหาร",              tags: ["Food","Drink","Cafe","Bakery","Cooking"] },
-  { icon: "💻", label: "ธุรกิจ/เทคโนโลยี",  tags: ["Business","Technology","Office","Working","Remote Work"] },
-];
-
+ 
 export default function Sidebar({
   user,
   activeNav = "home",
@@ -21,7 +11,6 @@ export default function Sidebar({
   onHomeClick,
   onOrdersClick,
   onNotificationsClick,
-  onUsersClick,
   onProfileClick,
   onUploadClick,
   onDashboardClick,
@@ -39,10 +28,10 @@ export default function Sidebar({
       {badge > 0 && <span className="nav-notif-badge">{badge}</span>}
     </a>
   );
-
+ 
   return (
     <aside className="sidebar">
-      {/* Brand */}
+      {/* Logo mark */}
       <div className="sidebar-brand">
         <div className={`brand-mark ${isAdmin ? "admin-mark" : ""}`}>
           {isAdmin ? "⚙" : "✦"}
@@ -56,7 +45,7 @@ export default function Sidebar({
           active={activeNav === "home"}
           onClick={onHomeClick}
         />
-
+ 
         {isAdmin ? (
           <>
             <NavItem icon="🔔" label="Alerts"
@@ -70,7 +59,7 @@ export default function Sidebar({
             />
             <NavItem icon="👥" label="Users"
               active={activeNav === "users"}
-              onClick={onUsersClick}
+              onClick={() => {}}
             />
             <NavItem icon="📊" label="Stats"
               active={activeNav === "dashboard"}
@@ -83,51 +72,45 @@ export default function Sidebar({
           </>
         ) : (
           <>
-          <NavItem icon="📦" label="Orders"   onClick={onOrdersClick} />
-            
-              <NotificationBell userId={user?.uid} />
-            <>
-              <NavItem
+            <NavItem icon="📦" label="Orders"   onClick={onOrdersClick} />
+            <NavItem icon="🔔" label="Alerts"   onClick={() => alert("Notifications coming soon!")} />
+            <NavItem
               icon="＋" label="Upload"
               active={activeNav === "upload"}
               onClick={onUploadClick}
             />
-            </>
           </>
         )}
       </nav>
-
-      {/* User section */}
+ 
+      {/* Account section */}
       <div className="user-account">
-        <div className="user-label">Your Account</div>
+        {/* Settings */}
+        <a
+          href="#"
+          className="settings"
+          onClick={(e) => { e.preventDefault(); onProfileClick?.(); }}
+        >
+          <span style={{ fontSize: 18, lineHeight: 1 }}>⚙</span>
+          Settings
+        </a>
+ 
+        {/* Profile avatar */}
         <div className="profile">
           <div className={`profile-avatar ${isAdmin ? "admin-avatar" : ""}`}>
             {isAdmin ? "⚙" : "👤"}
           </div>
-          <div>
-            <div className="profile-name">{user?.name ?? "Guest"}</div>
-            <div className={`profile-role ${isAdmin ? "admin-role-tag" : ""}`}>
-              {isAdmin ? "administrator" : (user?.role ?? "buyer")}
-            </div>
-          </div>
         </div>
-
-        {!isAdmin && (
-          <a href="#" className="settings" onClick={(e) => { e.preventDefault(); onProfileClick?.(); }}>
-            ⚙ Settings
-          </a>
-        )}
-        {isAdmin && (
-          <a href="#" className="settings">⚙ Settings</a>
-        )}
-
+ 
+        {/* Sign out */}
         {onLogout && (
           <a
             href="#"
             className="settings logout-btn"
             onClick={(e) => { e.preventDefault(); onLogout(); }}
           >
-            🚪 Sign Out
+            <span style={{ fontSize: 18, lineHeight: 1 }}>🚪</span>
+            Sign Out
           </a>
         )}
       </div>

@@ -2,6 +2,7 @@
 
 const { db, FieldValue } = require('../config/firebase');
 const { IMAGE_STATUS } = require('../models/imageModel');
+const { createNotification } = require('./notificationService');
 
 const COL = 'images';
 
@@ -15,6 +16,12 @@ const createImage = async (imageDocument) => {
   const ref = await db()
     .collection(COL)
     .add({ ...imageDocument, searchKeywords: keywords });
+
+  // Notify the seller — photo uploaded successfully
+  await createNotification(imageDocument.sellerId, {
+    type: 'photo_uploaded',
+    message: `Your photo "${imageDocument.imageName}" has been uploaded and is pending review`,
+  });
 
   return ref.id;
 };
@@ -39,26 +46,19 @@ const getApprovedImages = async ({
     .collection(COL)
     .where('status', '==', IMAGE_STATUS.APPROVED);
 
-  // Category filter
   if (category) {
     query = query.where('category', '==', category);
   }
-
-  // Price range filters
   if (minPrice !== null) {
     query = query.where('price', '>=', parseFloat(minPrice));
   }
   if (maxPrice !== null) {
     query = query.where('price', '<=', parseFloat(maxPrice));
   }
-
-  // Keyword search
   if (search) {
-    const keyword = search.toLowerCase().trim().split(/\s+/)[0]; // first word only
+    const keyword = search.toLowerCase().trim().split(/\s+/)[0];
     query = query.where('searchKeywords', 'array-contains', keyword);
   }
-
-  // Ordering & pagination
   if (minPrice !== null || maxPrice !== null) {
     query = query.orderBy('price', 'asc');
   } else {
@@ -67,7 +67,6 @@ const getApprovedImages = async ({
 
   query = query.limit(parseInt(limit) || 20);
 
-  // Cursor-based pagination
   if (startAfter) {
     const cursorSnap = await db().collection(COL).doc(startAfter).get();
     if (cursorSnap.exists) {
@@ -85,7 +84,7 @@ const getSellerImages = async (sellerId) => {
     .collection(COL)
     .where('sellerId', '==', sellerId)
     .where('status', '!=', IMAGE_STATUS.DELETED)
-    .orderBy('status')                      // required when using != filter
+    .orderBy('status')
     .orderBy('uploadDate', 'desc')
     .get();
   return snap.docs.map((d) => ({ imageId: d.id, ...d.data() }));
@@ -96,12 +95,11 @@ const getPendingImages = async (limit = 50) => {
   const snap = await db()
     .collection(COL)
     .where('status', '==', IMAGE_STATUS.PENDING)
-    .orderBy('uploadDate', 'asc')           // oldest pending first
+    .orderBy('uploadDate', 'asc')
     .limit(limit)
     .get();
   return snap.docs.map((d) => ({ imageId: d.id, ...d.data() }));
 };
-
 
 // Update fields
 const updateImage = async (imageId, fields) => {

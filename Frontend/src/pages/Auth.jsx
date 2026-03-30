@@ -9,7 +9,6 @@ const IconMail = () => <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" hei
 const IconLock = () => <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="11" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>;
 const IconUser = () => <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>;
 
-
 export default function AuthPage() {
   const { login, register } = useAuth();
 
@@ -111,7 +110,6 @@ export default function AuthPage() {
 
               <div className="forgot-row"><span className="forgot-link">Forgot password?</span></div>
               <button className="submit-btn" onClick={handleLogin} disabled={loading}>{loading ? "Signing in…" : "Sign In"}</button>
-
               <div className="switch-text">Don't have an account? <button onClick={() => switchMode("register")}>Create one</button></div>
             </>
           ) : (
@@ -149,11 +147,6 @@ export default function AuthPage() {
               </div>
 
               <button className="submit-btn" onClick={handleRegister} disabled={loading}>{loading ? "Creating account…" : "Create Account"}</button>
-              <div className="divider">or register with</div>
-              <div className="social-row">
-                <button className="social-btn" disabled><GoogleIcon /> Google</button>
-                <button className="social-btn" disabled><AppleIcon /> Apple</button>
-              </div>
               <div className="switch-text">Already have an account? <button onClick={() => switchMode("login")}>Sign in</button></div>
             </>
           )}

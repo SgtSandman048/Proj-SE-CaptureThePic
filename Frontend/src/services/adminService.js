@@ -93,6 +93,84 @@ export const rejectImage = async (imageId, reason) => {
   return data.data;
 };
 
+
+/**
+ * GET /admin/users
+ * Returns all platform users with optional filters.
+ * @param {{ search?: string, role?: string, banned?: boolean|null, limit?: number }} params
+ * @returns {Array<User>}
+ */
+export const getAllUsers = async ({ search = null, role = null, banned = null, limit = 100 } = {}) => {
+  const params = new URLSearchParams();
+  if (search)          params.set("search", search);
+  if (role)            params.set("role",   role);
+  if (banned !== null) params.set("banned", String(banned));
+  if (limit)           params.set("limit",  String(limit));
+ 
+  const { data } = await api.get(`/admin/users?${params}`);
+  if (!data.success) throw new Error(data.message || "Failed to load users.");
+  return data.data.users || [];
+};
+ 
+/**
+ * GET /admin/users/:id
+ * Returns full user profile including order/image stats.
+ * @param {string} userId
+ * @returns {object}
+ */
+export const getUserById = async (userId) => {
+  const { data } = await api.get(`/admin/users/${userId}`);
+  if (!data.success) throw new Error(data.message || "User not found.");
+  return data.data;
+};
+ 
+/**
+ * GET /admin/users/:id/activity
+ * Returns the user's 10 most recent orders and uploaded images.
+ * @param {string} userId
+ * @returns {{ recentOrders: Array, recentImages: Array }}
+ */
+export const getUserActivity = async (userId) => {
+  const { data } = await api.get(`/admin/users/${userId}/activity`);
+  if (!data.success) throw new Error(data.message || "Failed to load activity.");
+  return data.data;
+};
+ 
+/**
+ * PATCH /admin/users/:id/ban
+ * Bans a user account. reason is displayed to the user on login.
+ * @param {string} userId
+ * @param {string} [reason=""]
+ */
+export const banUser = async (userId, reason = "") => {
+  const { data } = await api.patch(`/admin/users/${userId}/ban`, { reason: reason.trim() });
+  if (!data.success) throw new Error(data.message || "Ban failed.");
+  return data.data;
+};
+ 
+/**
+ * PATCH /admin/users/:id/unban
+ * Lifts the ban on a user account.
+ * @param {string} userId
+ */
+export const unbanUser = async (userId) => {
+  const { data } = await api.patch(`/admin/users/${userId}/unban`);
+  if (!data.success) throw new Error(data.message || "Unban failed.");
+  return data.data;
+};
+ 
+/**
+ * DELETE /admin/users/:id
+ * Soft-deletes a user account — anonymises profile and hides pending images.
+ * This action cannot be undone from the UI.
+ * @param {string} userId
+ */
+export const deleteUser = async (userId) => {
+  const { data } = await api.delete(`/admin/users/${userId}`);
+  if (!data.success) throw new Error(data.message || "Delete failed.");
+  return data.data;
+}
+
 // ── Dashboard ──────────────────────────────────────────────────
 
 /**

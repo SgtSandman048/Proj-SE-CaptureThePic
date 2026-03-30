@@ -10,6 +10,12 @@ const {
   approveImage,
   rejectImage,
   getDashboard,
+  listUsers,
+  getUserDetail,
+  getUserActivityHandler,
+  banUserHandler,
+  unbanUserHandler,
+  deleteUserHandler,
 } = require('../controllers/adminController');
 
 const { authenticate } = require('../middleware/authMiddleware');
@@ -29,5 +35,17 @@ router.get('/images/pending', getPendingImagesList);
 router.put('/images/:id/approve', approveImage);
 
 router.put('/images/:id/reject', rejectImage);
+
+router.get('/users',                  listUsers);
+
+router.get('/users/:id',              getUserDetail);
+
+router.get('/users/:id/activity',     getUserActivityHandler);
+
+router.patch('/users/:id/ban',        banUserHandler);
+
+router.patch('/users/:id/unban',      unbanUserHandler);
+
+router.delete('/users/:id',           deleteUserHandler);
 
 module.exports = router;
