@@ -104,6 +104,23 @@ export default function OrderHistory({ onBack }) {
   );
 }
 
+// ── CopyField — click to copy account numbers ──────────────────
+function CopyField({ value }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  };
+  return (
+    <button className={`oh-copy-field ${copied ? "copied" : ""}`} onClick={copy} type="button">
+      <span className="oh-copy-value">{value}</span>
+      <span className="oh-copy-icon">{copied ? "✓" : "⧉"}</span>
+    </button>
+  );
+}
+
 // ── CopyField ──────────────────────────────────────────────────
 function CopyField({ value }) {
   const [copied, setCopied] = useState(false);
