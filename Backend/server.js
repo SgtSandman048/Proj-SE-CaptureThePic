@@ -6,6 +6,8 @@ require('dotenv').config();
 
 const app = express();
 
+const { sendError } = require('./utils/apiResponse');
+
 const authRoutes = require('./routes/authRoutes');
 const imageRoutes = require('./routes/imageRoutes');
 const orderRoutes = require('./routes/orderRoutes');
@@ -15,7 +17,7 @@ const PORT = process.env.PORT || 8080;
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: 'http://localhost:5174',
   credentials: true,
 }));
 app.use(express.json());
@@ -32,6 +34,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
+
 
 // Error Handler
 app.use((req, res) => {

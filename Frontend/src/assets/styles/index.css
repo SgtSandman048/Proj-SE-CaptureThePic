@@ -1,0 +1,66 @@
+/**
+ * assets/styles/index.css
+ * Global design tokens used by every component.
+ * Import this once in index.jsx or App.jsx.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@300;400&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Base palette */
+  --bg-base:    #0d1117;
+  --bg-panel:   #141921;
+  --bg-raised:  #161b25;
+  --bg-hover:   #1a2235;
+  --border:     rgba(255,255,255,0.07);
+  --border-mid: rgba(255,255,255,0.12);
+
+  /* Brand accent */
+  --accent:     #4fc3c3;
+  --accent-dim: rgba(79,195,195,0.12);
+
+  /* Admin accent */
+  --admin-accent: #f59e0b;
+
+  /* Text hierarchy */
+  --text-hi:   #f0f2f5;
+  --text-mid:  #c8cdd8;
+  --text-lo:   #8a9ab5;
+  --text-mute: #4a5568;
+
+  /* Typography */
+  --mono:  'DM Mono', monospace;
+  --serif: 'Playfair Display', serif;
+  --sans:  'DM Sans', sans-serif;
+
+  /* Auth form palette */
+  --dark:   #1c2333;
+  --darker: #151c2b;
+  --mid:    #253047;
+  --light:  #f0f2f5;
+  --white:  #ffffff;
+  --muted:  #8a9ab5;
+}
+
+body, html {
+  font-family: var(--sans);
+  background: var(--bg-base);
+  color: var(--text-hi);
+}
+
+/* ── Shell ─────────────────────────────────────────────────── */
+.app-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  min-width: 0;
+}

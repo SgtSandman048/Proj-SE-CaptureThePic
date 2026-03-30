@@ -373,4 +373,81 @@ const getMyImages = async (req, res) => {
   }
 };
 
-module.exports = { getImages, uploadImage, getImageDetail, deleteImage, getMyImages };
+//  PATCH /api/images/:id 
+const updateImageDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Fetch image
+    const image = await getImageById(id);
+    if (!image) return sendError(res, 404, 'Image not found');
+
+    // 2. Ownership — only seller who owns it
+    if (image.sellerId !== req.user.uid && req.user.role !== 'admin') {
+      return sendError(res, 403, 'Access denied. You can only edit your own images.');
+    }
+
+    // 3. Only allow editing when status is pending or rejected
+    //    (approved images cannot be silently changed without re-review)
+    const editableStatuses = [IMAGE_STATUS.PENDING, IMAGE_STATUS.REJECTED];
+    if (!editableStatuses.includes(image.status)) {
+      return sendError(res, 409, `Cannot edit an image with status "${image.status}". Only pending or rejected images can be updated.`);
+    }
+
+    // 4. Build update payload (only fields that were provided)
+    const { imageName, description, price, category, tags } = req.body;
+    const updates = { updatedAt: new Date() };
+
+    if (imageName !== undefined) {
+      if (!imageName.trim()) return sendError(res, 400, 'imageName cannot be empty');
+      updates.imageName = imageName.trim();
+    }
+
+    if (description !== undefined) updates.description = description.trim();
+
+    if (price !== undefined) {
+      const priceNum = parseFloat(price);
+      const priceCheck = validatePrice(priceNum);
+      if (!priceCheck.valid) return sendError(res, 400, priceCheck.reason);
+      updates.price = priceNum;
+    }
+
+    if (category !== undefined) {
+      if (!IMAGE_CATEGORIES.includes(category)) {
+        return sendError(res, 400, `Invalid category. Valid options: ${IMAGE_CATEGORIES.join(', ')}`);
+      }
+      updates.category = category;
+    }
+
+    if (tags !== undefined) {
+      let parsedTags = [];
+      try {
+        parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+        if (!Array.isArray(parsedTags)) parsedTags = [];
+      } catch { parsedTags = []; }
+      updates.tags = parsedTags;
+    }
+
+    // 5. If previously rejected, reset to pending so admin re-reviews
+    if (image.status === IMAGE_STATUS.REJECTED) {
+      updates.status   = IMAGE_STATUS.PENDING;
+      updates.adminNote = '';
+    }
+
+    // 6. Persist
+    await updateImage(id, updates);
+
+    console.log(`[PATCH /images/${id}] Updated by seller ${req.user.uid}`);
+
+    return sendSuccess(res, 200, 'Image updated. Re-submitted for admin review.', {
+      imageId: id,
+      updatedFields: Object.keys(updates).filter(k => k !== 'updatedAt'),
+      status: updates.status || image.status,
+    });
+  } catch (error) {
+    console.error('updateImage error:', error);
+    return sendError(res, 500, 'Failed to update image');
+  }
+};
+
+module.exports = { getImages, uploadImage, getImageDetail, deleteImage, getMyImages, updateImage: updateImageDetail};
