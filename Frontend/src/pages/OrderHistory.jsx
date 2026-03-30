@@ -104,7 +104,7 @@ export default function OrderHistory({ onBack }) {
   );
 }
 
-// ── CopyField — click to copy account numbers ──────────────────
+// ── CopyField ──────────────────────────────────────────────────
 function CopyField({ value }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
