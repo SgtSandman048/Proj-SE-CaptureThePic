@@ -101,7 +101,6 @@ const getPendingImages = async (limit = 50) => {
   return snap.docs.map((d) => ({ imageId: d.id, ...d.data() }));
 };
 
-
 // Update fields
 const updateImage = async (imageId, fields) => {
   await db()
