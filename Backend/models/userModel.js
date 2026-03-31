@@ -18,7 +18,9 @@ const createUserDocument = (uid, username, email, role, hashedPassword) => ({
   isActive: true,
   isEmailVerified: false,
   profileImage: null,
+  profileImagePublicId: null,
   bio: null,
+  location: null,
 
   // Seller-specific fields (null for buyers)
   sellerProfile: role === ROLES.USER ? {
@@ -33,6 +35,11 @@ const createUserDocument = (uid, username, email, role, hashedPassword) => ({
   // Buyer-specific fields
   purchasedImages: [],
   wishlist: [],
+
+  // Wallet (sellers only — initialised for all, only meaningful for sellers)
+  sellerBalance:        0,
+  sellerTotalEarned:    0,
+  sellerTotalWithdrawn: 0,
 
   // Timestamps
   createdAt: FieldValue.serverTimestamp(),
@@ -53,6 +60,7 @@ const publicProfile = (userDoc) => ({
   role: userDoc.role,
   profileImage: userDoc.profileImage,
   bio: userDoc.bio,
+  location: userDoc.location || null,
   sellerProfile: userDoc.sellerProfile
     ? {
         totalSales: userDoc.sellerProfile.totalSales,

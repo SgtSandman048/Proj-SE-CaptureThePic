@@ -60,6 +60,9 @@ export const getMe = async () => {
       email: data.data.email,
       role: data.data.role,
       uid: data.data.uid,
+      profileImage: data.data.profileImage  || null,
+      bio:          data.data.bio           || "",
+      location:     data.data.location      || "",
     };
   } catch {
     removeToken();

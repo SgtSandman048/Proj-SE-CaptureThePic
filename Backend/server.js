@@ -6,13 +6,13 @@ require('dotenv').config();
 
 const app = express();
 
-const { sendError } = require('./utils/apiResponse');
-
 const authRoutes = require('./routes/authRoutes');
 const imageRoutes = require('./routes/imageRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const walletRoutes = require('./routes/walletRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');  // ← add this
+const { sendError } = require('./utils/apiResponse');
 
 const PORT = process.env.PORT || 8080;
 
@@ -34,8 +34,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/notifications', notificationRoutes);  // ← add this
-
+app.use('/api/wallet', walletRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Error Handler
 app.use((req, res) => {

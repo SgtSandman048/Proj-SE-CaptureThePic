@@ -10,6 +10,12 @@ const {
   notifySellerImageRejected,
 } = require('./notificationService');
 
+const {
+  creditSellerForSale,
+  processWithdrawal,
+  getPendingWithdrawals,
+} = require('./walletService');
+
 // Resolve Firestore instance once — Firebase initialised before this module loads
 const db = getDb();
 
@@ -84,6 +90,25 @@ const verifyOrder = async (orderId, targetStatus, adminUid, adminNote = null) =>
       })
       .catch((e) => console.warn('[adminService] Could not update user purchasedImages:', e.message));
 
+    db.collection(IMAGES_COL).doc(order.imageId).get()
+      .then((imgSnap) => {
+        if (!imgSnap.exists) return;
+        const img = imgSnap.data();
+        return creditSellerForSale({
+          sellerId:  img.sellerId,
+          orderId:   orderId,
+          imageId:   order.imageId,
+          imageName: order.imageName || img.imageName,
+          salePrice: order.totalAmount,
+        });
+      })
+      .then((payout) => {
+        if (payout) {
+          console.log(`[adminService] ✅ Wallet credited: seller received ฿${payout.net} (fee ฿${payout.platformFee})`);
+        }
+      })
+      .catch((e) => console.warn('[adminService] Wallet credit failed (non-blocking):', e.message));
+    
     notifyUserOrderApproved({
       userId:    order.userId,
       orderId,
@@ -326,4 +351,4 @@ const getUserActivity = async (userId) => {
   };
 };
 
-module.exports = { getCheckingOrders, verifyOrder, getAllOrders, approveImageAndNotify, rejectImageAndNotify, getAllUsers, getUserById, banUser, unbanUser, softDeleteUser, getUserActivity,};
+module.exports = { getCheckingOrders, verifyOrder, getAllOrders, approveImageAndNotify, rejectImageAndNotify, getAllUsers, getUserById, banUser, unbanUser, softDeleteUser, getUserActivity, processWithdrawal, getPendingWithdrawals,};

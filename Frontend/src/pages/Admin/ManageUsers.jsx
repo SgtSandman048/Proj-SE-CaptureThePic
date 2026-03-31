@@ -28,7 +28,7 @@ import {
   unbanUser,
   deleteUser,
 } from "../../services/adminService";
-import { getNotificationCount } from "../../services/orderService";
+//import { getNotificationCount } from "../../services/orderService";
 import "../../assets/styles/ManageUsers.css";
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ export default function ManageUsers({ onNotificationsClick }) {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    getNotificationCount().then(setNotifCount).catch(() => setNotifCount(0));
+    //getNotificationCount().then(setNotifCount).catch(() => setNotifCount(0));
   }, []);
 
   // ── Client-side search filter ─────────────────────────────────

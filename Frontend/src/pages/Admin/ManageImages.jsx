@@ -20,7 +20,12 @@ import Toast from "../../components/common/Toast";
 import ManageUsers from "./ManageUsers";
 import ImageDetail from "../ImageDetail";
 import { getImages } from "../../services/imageService";
-import { getNotificationCount } from "../../services/orderService";
+import {
+  getNotifications,
+  getUnreadCount,
+  markAsRead,
+  markAllAsRead,
+} from "../../services/notificationService";
 import {
   getCheckingOrders,
   getAllAdminOrders,
@@ -69,7 +74,14 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
   const [checkingCount,   setCheckingCount]   = useState(null);
  
   useEffect(() => {
-    getNotificationCount().then(setNotifCount).catch(() => setNotifCount(0));
+    const fetch = () =>
+      getUnreadCount().then(setNotifCount).catch(() => setNotifCount(0));
+    fetch();
+    const id = setInterval(fetch, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
     getPendingImages().then((imgs) => setPendingImgCount(imgs.length)).catch(() => setPendingImgCount(0));
     getCheckingOrders().then((orders) => setCheckingCount(orders.length)).catch(() => setCheckingCount(0));
   }, []);
@@ -89,7 +101,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
       activeNav={sidebarNav[activeTab] ?? "home"}
       onHomeClick={() => { setSelectedImageId(null); setActiveTab("gallery"); }}
       onOrdersClick={() => setActiveTab("orders")}
-      onNotificationsClick={onNotificationsClick}
+      onNotificationsClick={() => setActiveTab("alerts")}
       onImagesClick={() => setActiveTab("images")}
       onUsersClick={() => setActiveTab("users")}
       onDashboardClick={() => setActiveTab("dashboard")}
@@ -141,7 +153,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
         {/* Notification bar — gallery only */}
         {activeTab === "gallery" && (
           <div className="admin-notif-bar" onClick={() => onNotificationsClick?.()}
-            role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && onNotificationsClick?.()}>
+            role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && setActiveTab("alerts")}>
             <div className="admin-notif-bar-left">
               <span className="notif-bar-icon">🔔</span>
               <span className="notif-bar-text">
@@ -157,6 +169,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
  
         {/* Tab content */}
         {activeTab === "gallery"   && <GalleryTab images={images} loading={loadingImages} activeFilter={activeFilter} setActiveFilter={setActiveFilter} onImageClick={setSelectedImageId} />}
+        {activeTab === "alerts"    && <AlertsTab onCountChange={setNotifCount} onTabSwitch={setActiveTab} />}
         {activeTab === "images"    && <ImageModerationTab showToast={showToast} onCountChange={setPendingImgCount} />}
         {activeTab === "orders"    && <OrderModerationTab showToast={showToast} onCountChange={setCheckingCount} />}
         {activeTab === "users"     && <ManageUsers showToast={showToast} onNotificationsClick={onNotificationsClick}/>}
@@ -582,6 +595,184 @@ function OrderModerationTab({ showToast, onCountChange }) {
   );
 }
  
+
+const NOTIF_TYPES = {
+  new_image_pending:  { icon: "📷", label: "New Image",    color: "var(--admin-accent)" },
+  new_slip_uploaded:  { icon: "💳", label: "New Slip",     color: "var(--admin-blue)"   },
+  purchase_complete:  { icon: "✅", label: "Approved",     color: "var(--admin-green)"  },
+  payment_rejected:   { icon: "❌", label: "Rejected",     color: "var(--admin-red)"    },
+  photo_approved:     { icon: "🎉", label: "Img Approved", color: "var(--admin-green)"  },
+  photo_rejected:     { icon: "⚠️", label: "Img Rejected", color: "var(--admin-red)"    },
+};
+const TYPE_FILTERS = [
+  { value: "all",    label: "All" },
+  { value: "images", label: "Images", types: ["new_image_pending", "photo_approved", "photo_rejected"] },
+  { value: "orders", label: "Orders", types: ["new_slip_uploaded", "purchase_complete", "payment_rejected"] },
+  { value: "unread", label: "Unread"  },
+];
+ 
+function AlertsTab({ onCountChange, onTabSwitch }) {
+  const [notifs,      setNotifs]      = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState(null);
+  const [typeFilter,  setTypeFilter]  = useState("all");
+  const [markingAll,  setMarkingAll]  = useState(false);
+ 
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const data = await getNotifications();
+      setNotifs(Array.isArray(data) ? data : []);
+      const unread = (Array.isArray(data) ? data : []).filter(n => !n.read).length;
+      onCountChange?.(unread);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }, []);
+ 
+  // Initial load + 30s auto-refresh
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 30_000);
+    return () => clearInterval(id);
+  }, [load]);
+ 
+  const handleMarkOne = async (id) => {
+    await markAsRead(id).catch(() => {});
+    setNotifs(prev => {
+      const next = prev.map(n => n.id === id ? { ...n, read: true } : n);
+      onCountChange?.(next.filter(n => !n.read).length);
+      return next;
+    });
+  };
+ 
+  const handleMarkAll = async () => {
+    setMarkingAll(true);
+    await markAllAsRead().catch(() => {});
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+    onCountChange?.(0);
+    setMarkingAll(false);
+  };
+ 
+  const displayed = notifs.filter(n => {
+    const f = TYPE_FILTERS.find(f => f.value === typeFilter);
+    if (!f) return true;
+    if (f.value === "all")    return true;
+    if (f.value === "unread") return !n.read;
+    return f.types?.includes(n.type);
+  });
+ 
+  const unreadCount = notifs.filter(n => !n.read).length;
+ 
+  // Action shortcut: clicking a card navigates to the relevant tab
+  const handleNotifClick = (n) => {
+    handleMarkOne(n.id);
+    if (n.type === "new_image_pending" || n.type === "photo_approved" || n.type === "photo_rejected") {
+      onTabSwitch?.("images");
+    } else if (n.type === "new_slip_uploaded" || n.type === "purchase_complete" || n.type === "payment_rejected") {
+      onTabSwitch?.("orders");
+    }
+  };
+ 
+  return (
+    <div className="mod-panel">
+      {/* Header */}
+      <div className="mod-header">
+        <div>
+          <div className="mod-title">🔔 Alerts</div>
+          <div className="mod-subtitle">
+            {loading ? "Loading…" : `${unreadCount} unread · ${notifs.length} total`}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            className="mod-refresh-btn"
+            onClick={handleMarkAll}
+            disabled={markingAll || unreadCount === 0}
+          >
+            {markingAll ? "⏳" : "✓"} Mark all read
+          </button>
+          <button className="mod-refresh-btn" onClick={load}>↻ Refresh</button>
+        </div>
+      </div>
+ 
+      {/* Type filter pills */}
+      <div className="mod-status-row" style={{ gap: 8 }}>
+        {TYPE_FILTERS.map(f => (
+          <button key={f.value}
+            className={`mod-status-chip ${typeFilter === f.value ? "active" : ""}`}
+            style={typeFilter === f.value ? { borderColor: "var(--admin-accent)", color: "var(--admin-accent)", background: "var(--admin-accent-dim)" } : {}}
+            onClick={() => setTypeFilter(f.value)}>
+            {f.label}
+            {f.value === "unread" && unreadCount > 0 && (
+              <span className="admin-tab-badge" style={{ marginLeft: 6 }}>{unreadCount}</span>
+            )}
+          </button>
+        ))}
+      </div>
+ 
+      {/* Content */}
+      {loading ? (
+        <div className="mod-loading">
+          {[1,2,3,4,5].map(i => <div key={i} className="mod-skeleton" style={{ height: 76 }} />)}
+        </div>
+      ) : error ? (
+        <div className="mod-error"><span>⚠</span><p>{error}</p><button onClick={load}>Retry</button></div>
+      ) : displayed.length === 0 ? (
+        <div className="mod-empty">
+          <div className="mod-empty-icon">{unreadCount === 0 ? "🎉" : "🔍"}</div>
+          <p>{typeFilter === "unread" && unreadCount === 0 ? "All caught up — no unread notifications!" : "No notifications match this filter."}</p>
+        </div>
+      ) : (
+        <div className="alerts-list">
+          {displayed.map((n, idx) => {
+            const meta = NOTIF_TYPES[n.type] ?? { icon: "🔔", label: "Info", color: "var(--text-mute)" };
+            return (
+              <div
+                key={n.id}
+                className={`alert-card ${n.read ? "read" : "unread"}`}
+                style={{ animationDelay: `${idx * 0.03}s` }}
+                onClick={() => handleNotifClick(n)}
+                title="Click to go to relevant section"
+              >
+                <div className="alert-icon" style={{ background: `${meta.color}18`, border: `1px solid ${meta.color}30` }}>
+                  {meta.icon}
+                </div>
+                <div className="alert-body">
+                  <div className="alert-type-badge" style={{ color: meta.color }}>{meta.label}</div>
+                  <p className="alert-message">{n.message}</p>
+                  <span className="alert-time">{formatTime(n.createdAt)}</span>
+                </div>
+                <div className="alert-right">
+                  {!n.read && <span className="alert-unread-dot" />}
+                  <button
+                    className="alert-read-btn"
+                    title="Mark as read"
+                    onClick={(e) => { e.stopPropagation(); handleMarkOne(n.id); }}
+                    style={{ visibility: n.read ? "hidden" : "visible" }}
+                  >
+                    ✓
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+ 
+function formatTime(ts) {
+  if (!ts) return "";
+  const d    = new Date(ts);
+  const diff = (Date.now() - d) / 1000;
+  if (diff < 60)    return "Just now";
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+  return formatDate(ts);
+}
+
  
 // ════════════════════════════════════════════════════════════════
 // TAB 4 — Dashboard

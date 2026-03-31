@@ -2,6 +2,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { body } = require('express-validator');
+const multer  = require('multer');   
 const router = express.Router();
 
 // Reminder: If you want use some API that disabled, Remove //.
@@ -11,6 +12,8 @@ const {
   refreshToken,
   logout,
   getMe,
+  updateProfile,
+  updateAvatar,
   //changePassword,
 } = require('../controllers/authController');
 const { authenticate } = require('../middleware/authMiddleware');
@@ -56,6 +59,38 @@ const loginValidators = [
   body('pass').notEmpty().withMessage('Password is required'),
 ];
 
+// Avatar Multer
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits:  { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowed.includes(file.mimetype)) return cb(null, true);
+    cb(new Error('Only JPEG, PNG, or WEBP allowed for profile pictures'), false);
+  },
+});
+
+// Profile Update
+const updateProfileValidators = [
+  body('username')
+    .optional()
+    .trim()
+    .isLength({ min: 3, max: 30 })
+    .withMessage('Username must be 3–30 characters')
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage('Username can only contain letters, numbers, and underscores'),
+  body('bio')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Bio must be under 500 characters'),
+  body('location')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Location must be under 100 characters'),
+];
+
 // Remove /**/ If you want to use this API.
 /*
 const changePasswordValidators = [
@@ -78,6 +113,10 @@ router.post('/refresh-token', refreshToken);
 router.post('/logout', authenticate, checkBan, logout);
 
 router.get('/me', authenticate, checkBan, getMe);
+
+router.patch('/me', authenticate, updateProfileValidators, updateProfile);
+
+router.patch('/me/avatar', authenticate, avatarUpload.single('avatarFile'), updateAvatar);
 
 //router.post('/change-password', authenticate, changePasswordValidators, changePassword);
 

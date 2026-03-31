@@ -253,6 +253,106 @@ const getMe = async (req, res) => {
   }
 };
 
+//  PATCH /api/auth/me
+const updateProfile = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return sendError(res, 422, 'Validation failed', errors.array());
+    }
+ 
+    const { username, bio, location } = req.body;
+    const updates = {};
+ 
+    // Username change — check for conflicts
+    if (username !== undefined) {
+      const trimmed = username.trim();
+      if (!trimmed) return sendError(res, 400, 'Username cannot be empty');
+      if (trimmed.length < 3 || trimmed.length > 30) {
+        return sendError(res, 400, 'Username must be 3–30 characters');
+      }
+      // Only check conflict if actually changing
+      const currentUser = await getUserById(req.user.uid);
+      if (trimmed !== currentUser.username) {
+        const taken = await isUsernameTaken(trimmed);
+        if (taken) return sendError(res, 409, 'Username is already taken');
+      }
+      updates.username = trimmed;
+    }
+ 
+    if (bio      !== undefined) updates.bio      = bio.trim().slice(0, 500);
+    if (location !== undefined) updates.location = location.trim().slice(0, 100);
+ 
+    if (Object.keys(updates).length === 0) {
+      return sendError(res, 400, 'No fields to update');
+    }
+ 
+    await updateUser(req.user.uid, updates);
+ 
+    const fresh = await getUserById(req.user.uid);
+    console.log(`[PATCH /auth/me] Updated profile: ${req.user.uid}`);
+ 
+    return sendSuccess(res, 200, 'Profile updated successfully', sanitizeUser(fresh));
+  } catch (error) {
+    console.error('[updateProfile]', error);
+    return sendError(res, 500, 'Failed to update profile');
+  }
+};
+
+//  PATCH /api/auth/me/avatar
+const updateAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return sendError(res, 400, 'No image file provided. Send a multipart field named "avatarFile".');
+    }
+ 
+    const { cloudinary, deleteCloudinaryImage } = require('../config/cloudinary');
+ 
+    // Upload new avatar to Cloudinary (public — it's a profile picture)
+    const uploadResult = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder:   'imagery/avatars',
+          public_id: `avatar_${req.user.uid}`,  // deterministic ID → auto-replaces old version
+          overwrite: true,
+          transformation: [
+            { width: 256, height: 256, crop: 'fill', gravity: 'face' }, // square crop, face-aware
+            { quality: 'auto:good', fetch_format: 'auto' },
+          ],
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        }
+      );
+      stream.end(req.file.buffer);
+    });
+ 
+    const profileImageUrl = uploadResult.secure_url;
+ 
+    // Delete old avatar from Cloudinary if it was different (overwrite=true handles same ID,
+    // but if user previously had a different public_id we clean it up)
+    const currentUser = await getUserById(req.user.uid);
+    if (
+      currentUser.profileImagePublicId &&
+      currentUser.profileImagePublicId !== uploadResult.public_id
+    ) {
+      deleteCloudinaryImage(currentUser.profileImagePublicId).catch(() => {});
+    }
+ 
+    await updateUser(req.user.uid, {
+      profileImage:          profileImageUrl,
+      profileImagePublicId:  uploadResult.public_id,
+    });
+ 
+    console.log(`[PATCH /auth/me/avatar] Avatar updated: ${req.user.uid}`);
+    return sendSuccess(res, 200, 'Profile picture updated', { profileImage: profileImageUrl });
+  } catch (error) {
+    console.error('[updateAvatar]', error);
+    return sendError(res, 500, 'Failed to update profile picture');
+  }
+};
+
 /*
 //  POST /api/auth/change-password
 const changePassword = async (req, res) => {
@@ -295,6 +395,8 @@ module.exports = {
   login, 
   refreshToken, 
   logout, 
-  getMe, 
+  getMe,
+  updateProfile,
+  updateAvatar, 
   //changePassword 
 };

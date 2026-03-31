@@ -10,11 +10,8 @@ import { createOrder, getMyOrders, getDownloadUrl } from "../services/orderServi
 import { formatTHB, formatDate, formatFileSize } from "../utils/format";
 import "../assets/styles/ImageDetail.css";
 
-const MOCK_SIMILAR = [
-  { imageId: "s1", imageName: "Golden Hour Haze",   watermarkUrl: "https://picsum.photos/seed/s1/400/300",  price: 320 },
-  { imageId: "s2", imageName: "Urban Geometry",     watermarkUrl: "https://picsum.photos/seed/s2/400/300",  price: 450 },
-  { imageId: "s3", imageName: "Twilight Silhouette", watermarkUrl: "https://picsum.photos/seed/s3/400/300", price: 280 },
-];
+// ── Similar images loaded from API ────────────────────────────
+// (replaces static MOCK_SIMILAR array)
 
 export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = false }) {
   const { user } = useAuth();
@@ -30,6 +27,7 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
   const [buying,      setBuying]      = useState(false);
   const [owned,       setOwned]       = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [similar,     setSimilar]     = useState([]);   // ← real similar images
 
   // Admin-only
   const [deleting,      setDeleting]      = useState(false);
@@ -39,11 +37,28 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
     if (!imageId) return;
     setLoading(true);
     setError(null);
+    setSimilar([]);
     getImageById(imageId)
       .then((img) => {
         setImage(img);
         setLikeCount(img.likes ?? 0);
         if (user?.purchasedImages?.includes(imageId)) setOwned(true);
+
+        // Fetch similar images by same category, exclude current
+        if (img.category) {
+          const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+          fetch(`${API_BASE}/images?category=${img.category}&limit=4`)
+            .then((r) => r.json())
+            .then((data) => {
+              if (data.success) {
+                const filtered = (data.data?.images || [])
+                  .filter((s) => s.imageId !== imageId)
+                  .slice(0, 3);
+                setSimilar(filtered);
+              }
+            })
+            .catch(() => {});
+        }
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -198,16 +213,26 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
 
           <div className="similar-section">
             <h3>Similar Images</h3>
-            <div className="similar-grid">
-              {MOCK_SIMILAR.map((s) => (
-                <div key={s.imageId} className="similar-card" onClick={() => onNavigate?.(s.imageId)}>
-                  <img src={s.watermarkUrl} alt={s.imageName} loading="lazy" />
-                  <div className="similar-card-overlay">
-                    <span>{s.imageName} — {formatTHB(s.price)}</span>
+            {similar.length === 0 ? (
+              <p style={{ fontSize: 12, color: "#4a5568", fontFamily: "'DM Mono', monospace" }}>
+                No similar images found.
+              </p>
+            ) : (
+              <div className="similar-grid">
+                {similar.map((s) => (
+                  <div key={s.imageId} className="similar-card" onClick={() => onNavigate?.(s.imageId)}>
+                    <img
+                      src={s.watermarkUrl || `https://picsum.photos/seed/${s.imageId}/400/300`}
+                      alt={s.imageName}
+                      loading="lazy"
+                    />
+                    <div className="similar-card-overlay">
+                      <span>{s.imageName}{s.price ? ` — ${formatTHB(s.price)}` : ""}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

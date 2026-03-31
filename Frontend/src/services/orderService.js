@@ -70,7 +70,7 @@ export const cancelOrder = async (orderId) => {
  * GET /notifications/count  — for admin badge.
  * @returns {number}
  */
-export const getNotificationCount = async () => {
-  const { data } = await api.get("/notifications/count");
-  return data.success ? (data.data?.count ?? 0) : 0;
-};
+// export const getNotificationCount = async () => {
+//   const { data } = await api.get("/notifications/count");
+//   return data.success ? (data.data?.count ?? 0) : 0;
+// };

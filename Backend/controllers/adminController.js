@@ -1,7 +1,7 @@
 // controllers/adminController.js
 
 const { db: getDb }   = require('../config/firebase');
-const { getCheckingOrders, verifyOrder, getAllOrders, approveImageAndNotify, rejectImageAndNotify,getAllUsers, getUserById, banUser, unbanUser, softDeleteUser, getUserActivity } = require('../services/adminService');
+const { getCheckingOrders, verifyOrder, getAllOrders, processWithdrawal, getPendingWithdrawals, approveImageAndNotify, rejectImageAndNotify,getAllUsers, getUserById, banUser, unbanUser, softDeleteUser, getUserActivity } = require('../services/adminService');
 const { getImageById, updateImage, getPendingImages } = require('../services/imageService');
 const { IMAGE_STATUS } = require('../models/imageModel');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
@@ -314,3 +314,64 @@ module.exports = {
   deleteUserHandler,
   getDashboard,
 };
+
+// ════════════════════════════════════════════════════════════════
+//  WITHDRAWAL MANAGEMENT
+//
+//  GET   /api/admin/withdrawals            → listWithdrawals
+//  PATCH /api/admin/withdrawals/:id/process → processWithdrawalHandler
+// ════════════════════════════════════════════════════════════════
+ 
+// GET /api/admin/withdrawals
+// ?all=true  returns all statuses; default = pending only
+const listWithdrawals = async (req, res) => {
+  try {
+    const all   = req.query.all === 'true';
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const withdrawals = await getPendingWithdrawals({ all, limit });
+    return sendSuccess(res, 200, 'Withdrawals fetched', {
+      withdrawals,
+      count: withdrawals.length,
+    });
+  } catch (err) {
+    console.error('[listWithdrawals]', err);
+    return sendError(res, 500, 'Failed to fetch withdrawals');
+  }
+};
+ 
+// PATCH /api/admin/withdrawals/:id/process
+// Body: { status: "approved" | "rejected", adminNote? }
+const processWithdrawalHandler = async (req, res) => {
+  try {
+    const { status, adminNote } = req.body;
+ 
+    if (!status) return sendError(res, 400, 'status is required ("approved" or "rejected")');
+    if (!['approved', 'rejected'].includes(status)) {
+      return sendError(res, 400, 'status must be "approved" or "rejected"');
+    }
+    if (status === 'rejected' && !adminNote?.trim()) {
+      return sendError(res, 400, 'adminNote is required when rejecting a withdrawal');
+    }
+ 
+    await processWithdrawal(req.params.id, {
+      status,
+      adminNote: adminNote?.trim() || null,
+      adminUid:  req.user.uid,
+    });
+ 
+    console.log(`[PATCH /admin/withdrawals/${req.params.id}/process] → ${status} by admin:${req.user.uid}`);
+    return sendSuccess(res, 200, `Withdrawal ${status}`, {
+      withdrawalId: req.params.id,
+      status,
+    });
+  } catch (err) {
+    if (err.message === 'WITHDRAWAL_NOT_FOUND') return sendError(res, 404, 'Withdrawal not found');
+    if (err.message === 'NOT_PENDING')          return sendError(res, 409, 'Only pending withdrawals can be processed');
+    if (err.message === 'INSUFFICIENT_BALANCE') return sendError(res, 400, 'Seller balance too low to approve');
+    console.error('[processWithdrawalHandler]', err);
+    return sendError(res, 500, 'Failed to process withdrawal');
+  }
+};
+ 
+// Merge into exports
+Object.assign(module.exports, { listWithdrawals, processWithdrawalHandler });
