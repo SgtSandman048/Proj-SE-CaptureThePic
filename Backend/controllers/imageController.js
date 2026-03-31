@@ -77,8 +77,7 @@ const getImages = async (req, res) => {
       isFeatured:   img.isFeatured,
     }));
 
-    // 4. Increment view count
-    //logger.info(`[GET /images] Returned ${responseImages.length} images | filters: ${JSON.stringify({ category, search, minPrice, maxPrice })}`);
+  
     console.log(`[GET /images] Returned ${responseImages.length} images | filters: ${JSON.stringify({ category, search, minPrice, maxPrice })}`);
 
     return sendSuccess(res, 200, 'Images fetched successfully', {
@@ -93,7 +92,6 @@ const getImages = async (req, res) => {
       },
     });
   } catch (error) {
-    //logger.error('getImages error:', error);
     console.log('getImages error:', error);
     return sendError(res, 500, 'Failed to fetch images');
   }
