@@ -106,7 +106,7 @@ const verifyOrder = async (orderId, targetStatus, adminUid, adminNote = null) =>
       userId:    order.userId,
       orderId,
       imageName: order.imageName || order.imageId,
-      adminNote: note,
+      adminNote: adminNote,
     });
 
     console.log(`[adminService] ❌ Order REJECTED: ${orderId} by admin:${adminUid}`);
