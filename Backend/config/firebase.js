@@ -13,29 +13,38 @@ const initializeFirebase = () => {
   }
 
   try {
+    let credential;
 
-    const serviceAccount = require('../serviceAccountKey.json'); // DO NOT CHANGE THIS NAME FILE.
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      // Production
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      credential = admin.credential.cert(serviceAccount);
+      console.log('[!] Firebase: using credentials from FIREBASE_SERVICE_ACCOUNT_JSON env var');
+    } else {
+      // Local
+      const serviceAccount = require('../serviceAccountKey.json');
+      credential = admin.credential.cert(serviceAccount);
+      console.log('[!] Firebase: using credentials from serviceAccountKey.json file');
+    }
 
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+      credential,
       databaseURL: process.env.FIREBASE_DATABASE_URL,
     });
 
     db = admin.firestore();
     auth = admin.auth();
 
-    // Firestore settings
     db.settings({ ignoreUndefinedProperties: true });
-    console.log("[!] Connected to Firebase Database");
-    
+    console.log('[!] Connected to Firebase Database');
+
     return { db, auth };
   } catch (error) {
-    console.error("[Error] 503: Cannot connect to Firebase Database\n", error.message);
+    console.error('[Error] 503: Cannot connect to Firebase Database\n', error.message);
     process.exit(1);
   }
 };
 
-// Initialize on module load
 initializeFirebase();
 
 module.exports = {
