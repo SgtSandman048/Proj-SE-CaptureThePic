@@ -1,4 +1,4 @@
-FROM node:22
+FROM node:22 AS builder
 
 WORKDIR /app
 
@@ -8,8 +8,23 @@ RUN npm install
 
 COPY . .
 
+# Build the production bundle (Vite bakes VITE_* env vars at this step —
+# pass VITE_API_URL as a Railway build argument or set it before this stage)
+RUN npm run build
+
+# --- Production stage ---
+FROM node:22-slim
+
+WORKDIR /app
+
+# 'serve' is a tiny static file server — no dev tooling needed
+RUN npm install -g serve
+
+COPY --from=builder /app/dist ./dist
+
 ENV PORT=5174
 
 EXPOSE 5174
 
-CMD ["npm", "run", "dev", "--", "--host"]
+# Serve the built app; Railway will route external traffic to this port
+CMD ["serve", "-s", "dist", "-l", "5174", "--no-clipboard"]
