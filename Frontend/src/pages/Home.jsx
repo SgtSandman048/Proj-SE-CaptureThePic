@@ -7,7 +7,7 @@ import Toast from "../components/common/Toast";
 import ImageDetail from "./ImageDetail";
 import UploadImage from "./UploadImage";
 import Profile from "./Profile";
-import { getImages } from "../services/imageService";
+import { getImages, searchUsersByName } from "../services/imageService";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../hooks/useToast";
 import iconSearch from "../assets/icons/search.png";
@@ -38,16 +38,30 @@ export default function Home({ onOrdersClick }) {
   const [activeFilter,     setActiveFilter]     = useState("All");
   const [searchQuery,      setSearchQuery]      = useState("");
   const [activeTab,        setActiveTab]        = useState(0);
+  const [userResults,      setUserResults]      = useState([]);
+  const [foundUser,        setFoundUser]        = useState(null);
 
-  useEffect(() => {
+ useEffect(() => {
+  const timer = setTimeout(() => {
     setLoadingImages(true);
     getImages({ category: activeFilter, search: searchQuery })
       .then(setImages)
       .catch(() => {})
       .finally(() => setLoadingImages(false));
-  }, [activeFilter, searchQuery]);
 
-  // ── ImageDetail ────────────────────────────────────────────
+    if (searchQuery.startsWith('@') && searchQuery.length > 1) {
+      searchUsersByName(searchQuery.slice(1)).then(users => {
+        setUserResults(users)
+        setFoundUser(users[0] || null)  // ← store first match
+      })
+    } else {
+      setUserResults([])
+      setFoundUser(null)
+    }
+  }, 500);
+  return () => clearTimeout(timer);
+}, [activeFilter, searchQuery]);
+
   if (selectedImageId) {
     return (
       <div className="app-container">
@@ -57,12 +71,18 @@ export default function Home({ onOrdersClick }) {
           onUploadClick={() => { setSelectedImageId(null); setShowUpload(true); }}
           onLogout={logout}
         />
-        <ImageDetail imageId={selectedImageId} onBack={() => setSelectedImageId(null)} onNavigate={setSelectedImageId} />
+        <ImageDetail
+          imageId={selectedImageId}
+          onBack={(searchQ) => {
+            setSelectedImageId(null);
+            if (searchQ) setSearchQuery(searchQ);
+          }}
+          onNavigate={setSelectedImageId}
+        />
       </div>
     );
   }
 
-  // ── Profile ────────────────────────────────────────────────
   if (showProfile) {
     return (
       <div className="app-container">
@@ -77,7 +97,6 @@ export default function Home({ onOrdersClick }) {
     );
   }
 
-  // ── Upload ─────────────────────────────────────────────────
   if (showUpload) {
     return (
       <div className="app-container">
@@ -86,7 +105,6 @@ export default function Home({ onOrdersClick }) {
     );
   }
 
-  // ── Main home ──────────────────────────────────────────────
   return (
     <div className="app-container">
       <Sidebar
@@ -98,18 +116,46 @@ export default function Home({ onOrdersClick }) {
       />
 
       <main className="main-content">
-        {/* Top bar */}
         <header className="black-top-bar">
           <div className="top-bar-content">
             <div className="search-container">
               <button className="search-btn"><img src={iconSearch} alt="search" className="search-icon-img" /></button>
               <input
                 type="text"
-                placeholder="Search images, styles, moods…"
+                placeholder="Search images… or @username #tag"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+
+              {/* User search dropdown */}
+              {userResults.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0,
+                  background: 'var(--bg-panel)', border: '1px solid var(--border)',
+                  borderRadius: '8px', zIndex: 1000, marginTop: '4px', overflow: 'hidden'
+                }}>
+                  {userResults.map(u => (
+                    <div key={u.uid}
+                      onClick={() => { setSearchQuery(`@${u.username}`); setUserResults([]) }}
+                      style={{
+                        padding: '10px 16px', cursor: 'pointer', fontSize: '13px',
+                        color: 'var(--text-mid)', display: 'flex', alignItems: 'center', gap: '8px',
+                        borderBottom: '1px solid var(--border)'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-raised)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <span style={{ fontSize: '16px' }}>👤</span>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{u.username}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-mute)' }}>{u.role}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
             <div className="top-bar-right">
               {user?.role === "seller" && (
                 <button className="topbar-upload-btn" onClick={() => setShowUpload(true)}>＋ Upload</button>
@@ -119,7 +165,6 @@ export default function Home({ onOrdersClick }) {
           </div>
         </header>
 
-        {/* ── Explore categories ──────────────────────────── */}
         <section className="categories">
           <div className="section-header">
             <h2 className="section-title">Explore images that ignite your creativity</h2>
@@ -134,13 +179,11 @@ export default function Home({ onOrdersClick }) {
           </div>
         </section>
 
-        {/* ── Gallery / Trending ──────────────────────────── */}
         <section className="gallery-section">
           <h2 className="section-title" style={{ marginBottom: 20, fontSize: 32, fontWeight: 900, letterSpacing: "-0.8px" }}>
             See what's trending
           </h2>
 
-          {/* Filter chips */}
           <div className="gallery-filter-row">
             {FILTERS.filter(f => f !== "All").map((f) => (
               <button
@@ -152,21 +195,31 @@ export default function Home({ onOrdersClick }) {
               </button>
             ))}
           </div>
-
-          {/* Tab bar */}
-          {/* <div className="gallery-tab-bar">
-            {GALLERY_TABS.map((tab, i) => (
-              <button
-                key={tab}
-                className={`gallery-tab ${activeTab === i ? "active" : ""}`}
-                onClick={() => setActiveTab(i)}
-              >
-                {tab}
-              </button>
-            ))}
-          </div> */}
-
-          {/* Images */}
+            
+            {/* User profile card when searching @username */}
+          {searchQuery.startsWith('@') && foundUser && !loadingImages && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '16px',
+          padding: '16px 20px', marginBottom: '20px',
+          background: 'var(--bg-raised)', borderRadius: '12px',
+          border: '1px solid var(--border)'
+      }}>
+        <div style={{
+          width: '48px', height: '48px', borderRadius: '50%',
+          background: 'var(--bg-hover)', border: '1.5px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px'
+        }}>👤</div>
+        <div>
+          <div style={{ fontWeight: 500, fontSize: '15px', color: 'var(--text-hi)' }}>
+            {foundUser.username}
+        </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-mute)', marginTop: '2px' }}>
+            {foundUser.role} · {images.length > 0 ? `${images.length} images` : 'No uploads yet'}
+          </div>
+        </div>
+      </div>
+        )}
+          {/* Gallery grid or loading skeleton or empty state */}
           {loadingImages ? (
             <div className="gallery-skeleton">
               {SKELETON_HEIGHTS.map((h, i) => (
@@ -176,8 +229,12 @@ export default function Home({ onOrdersClick }) {
           ) : images.length === 0 ? (
             <div className="gallery-empty">
               <span className="empty-icon">🖼</span>
-              <p>No images found{activeFilter !== "All" ? ` in "${activeFilter}"` : ""}.</p>
-            </div>
+              {searchQuery.startsWith('@') ? (
+              <p>No images from this user yet.</p>
+          ) : (
+            <p>No images found{activeFilter !== "All" ? ` in "${activeFilter}"` : ""}.</p>
+          )}
+          </div>
           ) : (
             <div className="image-gallery">
               {images.map((img) => (

@@ -29,7 +29,6 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
   const [downloading, setDownloading] = useState(false);
   const [similar,     setSimilar]     = useState([]);   // ← real similar images
 
-  // Admin-only
   const [deleting,      setDeleting]      = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -123,11 +122,15 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
     }
   };
 
-  // ── Loading ────────────────────────────────────────────────
+  // Search handler — goes back to home with search query
+  const handleSearch = (query) => {
+    onBack?.(query);
+  };
+
   if (loading) {
     return (
       <div className="detail-page">
-        <DetailTopBar />
+        <DetailTopBar onSearch={handleSearch} />
         <div className="detail-main">
           <div className="detail-left">
             <div className="skeleton skeleton-img" />
@@ -143,11 +146,10 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
     );
   }
 
-  // ── Error ──────────────────────────────────────────────────
   if (error || !image) {
     return (
       <div className="detail-page">
-        <DetailTopBar />
+        <DetailTopBar onSearch={handleSearch} />
         <div className="error-state">
           <div className="err-icon">🔍</div>
           <h3>Image Not Found</h3>
@@ -163,7 +165,7 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
 
   return (
     <div className="detail-page">
-      <DetailTopBar />
+      <DetailTopBar onSearch={handleSearch} />
 
       <div className="breadcrumb">
         <span onClick={onBack}>Home</span>
@@ -174,7 +176,6 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
       </div>
 
       <div className="detail-main">
-        {/* Left column */}
         <div className="detail-left">
           <div className="image-stage" onClick={() => setLightbox(true)} title="Click to enlarge">
             <img src={image.watermarkUrl || `https://picsum.photos/seed/${imageId}/800/600`} alt={image.imageName} loading="lazy" />
@@ -206,7 +207,16 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
             <div className="tags-section">
               <div className="tags-label">Tags</div>
               <div className="tags-row">
-                {image.tags.map((tag) => <span key={tag} className="tag-pill">#{tag}</span>)}
+                {image.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="tag-pill"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => handleSearch(`#${tag}`)}
+                  >
+                    #{tag}
+                  </span>
+                ))}
               </div>
             </div>
           )}
@@ -236,7 +246,6 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
           </div>
         </div>
 
-        {/* Right column */}
         <div className="detail-right">
           <div className="purchase-card">
             <div className="purchase-card-header">
@@ -249,7 +258,6 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
             </div>
 
             <div className="purchase-card-body">
-              {/* Admin delete section */}
               {isAdmin && (
                 <div className="admin-delete-section">
                   <div className="admin-delete-info">
@@ -277,7 +285,6 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
                 </div>
               )}
 
-              {/* Buyer actions */}
               {!isAdmin && (
                 owned ? (
                   <>
@@ -292,7 +299,6 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
                   <>
                     <button className="btn-buy" onClick={handleBuy} disabled={buying || !user} title={!user ? "Sign in to purchase" : ""}>
                       {buying ? "⏳ Processing…" : "🛒 Buy Now"}
-                      {/* {purchased ? "Purchased": "🛒 Buy Now"} */}
                     </button>
                     <button className="btn-wishlist" onClick={handleLike}>
                       {liked ? "❤ In Favourites" : "♡ Add to Favourites"}
@@ -312,7 +318,6 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
             </div>
           </div>
 
-          {/* File details */}
           <div className="detail-info-panel">
             <div className="detail-info-header"><span>🗂</span><h4>File Details</h4></div>
             <div className="detail-rows">
@@ -331,7 +336,6 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
             </div>
           </div>
 
-          {/* Seller panel */}
           <div className="seller-panel">
             <div className="seller-label">Photographer</div>
             <div className="seller-identity">
@@ -341,12 +345,16 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
                 <div className="seller-stats">{image.purchases ?? 0} sales · since {formatDate(image.uploadDate).split(" ").pop()}</div>
               </div>
             </div>
-            <button className="btn-view-profile">View Profile & More Images →</button>
+            <button
+              className="btn-view-profile"
+              onClick={() => handleSearch(`@${image.sellerName}`)}
+            >
+              View Profile & More Images →
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Lightbox */}
       {lightbox && (
         <div className="lightbox" onClick={() => setLightbox(false)}>
           <button className="lightbox-close" onClick={(e) => { e.stopPropagation(); setLightbox(false); }}>✕</button>
@@ -363,13 +371,24 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
   );
 }
 
-function DetailTopBar() {
+function DetailTopBar({ onSearch }) {
   const [query, setQuery] = useState("");
+
+  const handleSearch = () => {
+    if (query.trim()) onSearch?.(query.trim());
+  };
+
   return (
     <header className="detail-topbar">
       <div className="search-container">
-        <input type="text" placeholder="Search more images…" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <button className="search-btn">🔍</button>
+        <input
+          type="text"
+          placeholder="Search images… or @username #tag"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+        />
+        <button className="search-btn" onClick={handleSearch}>🔍</button>
       </div>
       <div className="logo">Imagery</div>
     </header>

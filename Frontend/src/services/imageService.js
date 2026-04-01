@@ -9,10 +9,24 @@ import { getToken } from "./authService";
  * @param {{ category?: string, search?: string }} params
  * @returns {Array}
  */
-export const getImages = async ({ category, search } = {}) => {
+export const getImages = async ({ category, search, tag, sellerName } = {}) => {
   const params = new URLSearchParams();
   if (category && category !== "All") params.set("category", category.toLowerCase());
-  if (search) params.set("search", search);
+
+  // Smart search — detect if searching by tag (#tag) or user (@user)
+  if (search) {
+    if (search.startsWith('#')) {
+      params.set("tag", search.slice(1).trim());
+    } else if (search.startsWith('@')) {
+      params.set("sellerName", search.slice(1).trim());
+    } else {
+      params.set("search", search);
+    }
+  }
+
+  if (tag) params.set("tag", tag);
+  if (sellerName) params.set("sellerName", sellerName);
+
   const { data } = await api.get(`/images?${params}`);
   return data.data?.images || [];
 };
@@ -101,3 +115,11 @@ export const uploadImage = (file, meta, onProgress) =>
 
 /** Cancel the last in-flight uploadImage request. */
 uploadImage.cancel = () => uploadImage._lastXhr?.abort();
+
+/**
+ * GET /images/search/users?q=  — search users by username
+ */
+export const searchUsersByName = async (query) => {
+  const { data } = await api.get(`/images/search/users?q=${encodeURIComponent(query)}`);
+  return data.data?.users || [];
+};
