@@ -10,6 +10,7 @@ import Profile from "./Profile";
 import { getImages } from "../services/imageService";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../hooks/useToast";
+import iconSearch from "../assets/icons/search.png";
 import "../assets/styles/HomePage.css";
 
 const FILTERS = ["All", "Nature", "Architecture", "People", "Abstract", "Animals", "Travel", "Food"];
@@ -66,7 +67,12 @@ export default function Home({ onOrdersClick }) {
     return (
       <div className="app-container">
         <Sidebar user={user} activeNav="profile" onHomeClick={() => setShowProfile(false)} onLogout={logout} />
-        <Profile onBack={() => setShowProfile(false)} theme={theme} onThemeChange={setTheme} />
+        <Profile
+          onBack={() => setShowProfile(false)}
+          theme={theme}
+          onThemeChange={setTheme}
+          onImageClick={(imageId) => { setShowProfile(false); setSelectedImageId(imageId); }}
+        />
       </div>
     );
   }
@@ -96,7 +102,7 @@ export default function Home({ onOrdersClick }) {
         <header className="black-top-bar">
           <div className="top-bar-content">
             <div className="search-container">
-              <button className="search-btn">🔍</button>
+              <button className="search-btn"><img src={iconSearch} alt="search" className="search-icon-img" /></button>
               <input
                 type="text"
                 placeholder="Search images, styles, moods…"

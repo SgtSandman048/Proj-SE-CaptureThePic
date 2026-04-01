@@ -7,7 +7,7 @@ import { useToast } from "../hooks/useToast";
 import Toast from "../components/common/Toast";
 import { getMyOrders } from "../services/orderService";
 import { getMyImages } from "../services/imageService";
-import { getWallet, getTransactions, getMyWithdrawals, requestWithdrawal, cancelWithdrawal } from "../services/walletService";
+import { getWallet, getTransactions, getMyWithdrawals, requestWithdrawal, cancelWithdrawal, initializeWallet } from "../services/walletService";
 import { formatTHB, formatDate } from "../utils/format";
 import "../assets/styles/ProfilePage.css";
 
@@ -52,17 +52,18 @@ function AreaChart({ data }) {
 }
 
 // ── Avatar component — shows image or initials fallback ────────
+import iconUser from "../assets/icons/user.png";
+
 function Avatar({ src, name, size = 56, className = "" }) {
   const [broken, setBroken] = useState(false);
-  const initial = (name || "?")[0].toUpperCase();
 
   if (!src || broken) {
     return (
       <div
         className={`avatar-initials ${className}`}
-        style={{ width: size, height: size, fontSize: size * 0.4 }}
+        style={{ width: size, height: size }}
       >
-        {initial}
+        <img src={iconUser} alt="default user" className="avatar-default-icon" />
       </div>
     );
   }
@@ -79,7 +80,7 @@ function Avatar({ src, name, size = 56, className = "" }) {
 
 // ══════════════════════════════════════════════════════════════
 export default function Profile({ onBack, theme = "dark", onThemeChange, onImageClick }) {
-  const { user, setUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { toast, showToast } = useToast();
   const avatarInputRef = useRef(null);
 
@@ -91,6 +92,9 @@ export default function Profile({ onBack, theme = "dark", onThemeChange, onImage
 
   // Wallet state
   const [wallet,          setWallet]          = useState(null);
+  const [walletError,     setWalletError]     = useState(false);
+  const [activating,      setActivating]      = useState(false);
+  const [activateError,   setActivateError]   = useState(null);
   const [loadWallet,      setLoadWallet]      = useState(false);
   const [transactions,    setTransactions]    = useState([]);
   const [loadTxns,        setLoadTxns]        = useState(false);
@@ -147,10 +151,12 @@ export default function Profile({ onBack, theme = "dark", onThemeChange, onImage
     setLoadWallet(true);
     setLoadTxns(true);
     setLoadWithdrawals(true);
+    setWalletError(false);
 
-    getWallet()
-      .then(setWallet)
-      .catch(() => setWallet(null))
+    // Return the primary wallet promise so callers can await it
+    const walletPromise = getWallet()
+      .then((w) => { setWallet(w); setWalletError(false); return w; })
+      .catch(() => { setWallet(null); setWalletError(true); return null; })
       .finally(() => setLoadWallet(false));
 
     getTransactions({ limit: 20 })
@@ -162,6 +168,35 @@ export default function Profile({ onBack, theme = "dark", onThemeChange, onImage
       .then(setWithdrawals)
       .catch(() => setWithdrawals([]))
       .finally(() => setLoadWithdrawals(false));
+
+    return walletPromise;
+  };
+
+  const handleActivateWallet = async () => {
+    setActivating(true);
+    setActivateError(null);
+    try {
+      // Step 1: call the initialize endpoint
+      await initializeWallet();
+
+      // Step 2: always re-fetch from server to confirm the new state
+      //         (guards against stale API response or Firestore timing)
+      const fresh = await fetchWalletData();
+
+      // Step 3: if the re-fetch still says not initialized, force it —
+      //         the backend write succeeded (no error thrown), so trust it
+      if (fresh && !fresh.initialized) {
+        setWallet((prev) => ({ ...prev, initialized: true }));
+      }
+
+      showToast("✓ Wallet activated! Welcome to your seller dashboard.", "success");
+    } catch (e) {
+      const msg = e?.message || "Activation failed. Please try again.";
+      setActivateError(msg);
+      showToast(`✗ ${msg}`, "error");
+    } finally {
+      setActivating(false);
+    }
   };
 
   // ── Fetch seller's own images ──────────────────────────────
@@ -226,8 +261,8 @@ export default function Profile({ onBack, theme = "dark", onThemeChange, onImage
       setAvatarPreview(newUrl);
       setAvatarFile(null);
 
-      // Patch the auth context so the avatar updates globally
-      setUser?.((prev) => ({ ...prev, profileImage: newUrl }));
+      // Refresh auth context so the sidebar avatar updates immediately
+      await refreshUser();
       showToast("✓ Profile picture updated", "success");
     } catch (e) {
       showToast(`✗ ${e.message}`, "error");
@@ -302,13 +337,15 @@ export default function Profile({ onBack, theme = "dark", onThemeChange, onImage
         throw new Error(data.message || "Save failed");
       }
 
-      // Patch auth context
-      setUser?.((prev) => ({
-        ...prev,
-        name:     data.data?.username ?? prev.name,
-        bio:      data.data?.bio      ?? prev.bio,
-        location: data.data?.location ?? prev.location,
-      }));
+      // Refresh the auth context so the sidebar and all consumers update immediately
+      const fresh = await refreshUser();
+      // Re-sync local form state so displayed values match the saved ones
+      if (fresh) {
+        setFormUsername(fresh.name     ?? "");
+        setFormBio(fresh.bio           ?? "");
+        setFormLocation(fresh.location ?? "");
+        if (fresh.profileImage) setAvatarPreview(fresh.profileImage);
+      }
 
       showToast("✓ Profile updated successfully", "success");
     } catch (e) {
@@ -318,8 +355,12 @@ export default function Profile({ onBack, theme = "dark", onThemeChange, onImage
     }
   };
 
+  // ── Expand toggles for "Recently Uploaded" and "Portfolio" ─
+  const [uploadsExpanded,   setUploadsExpanded]   = useState(false);
+  const [portfolioExpanded, setPortfolioExpanded] = useState(false);
+
   // ── Derived display data ───────────────────────────────────
-  const displayUploads = myImages.slice(0, 3);
+  const displayUploads = uploadsExpanded ? myImages : myImages.slice(0, 3);
   const uploadExtra    = Math.max(0, myImages.length - 3);
 
   return (
@@ -388,7 +429,9 @@ export default function Profile({ onBack, theme = "dark", onThemeChange, onImage
               <span className="section-block-title">
                 {user?.role === "user" ? "Recently Uploaded" : "My Purchases"}
               </span>
-              <button className="section-block-link">View all →</button>
+              <button className="section-block-link" onClick={() => setUploadsExpanded((v) => !v)}>
+                {uploadsExpanded ? "Show less ↑" : "View all →"}
+              </button>
             </div>
             <div className="section-block-body">
               {loadImages ? (
@@ -400,65 +443,89 @@ export default function Profile({ onBack, theme = "dark", onThemeChange, onImage
                   <span>{user?.role === "user" ? "No uploads yet" : "No purchases yet"}</span>
                 </div>
               ) : (
-                <div className="uploads-grid">
-                  {/* Tall first cell */}
-                  <div
-                    className="upload-cell tall"
-                    onClick={() => onImageClick?.(displayUploads[0]?.imageId)}
-                  >
-                    <img
-                      src={displayUploads[0]?.watermarkUrl || `https://picsum.photos/seed/${displayUploads[0]?.imageId}/400/600`}
-                      alt={displayUploads[0]?.imageName}
-                    />
-                    <div className="upload-cell-overlay">
-                      <span className="upload-cell-name">{displayUploads[0]?.imageName}</span>
-                      {displayUploads[0]?.price > 0 && (
-                        <span className="upload-cell-price">{formatTHB(displayUploads[0].price)}</span>
-                      )}
-                    </div>
-                    <span className={`upload-status-dot ${displayUploads[0]?.status}`} title={displayUploads[0]?.status} />
-                  </div>
-
-                  {/* Second cell */}
-                  {displayUploads[1] && (
-                    <div
-                      className="upload-cell"
-                      onClick={() => onImageClick?.(displayUploads[1]?.imageId)}
-                    >
-                      <img
-                        src={displayUploads[1]?.watermarkUrl || `https://picsum.photos/seed/${displayUploads[1]?.imageId}/400/300`}
-                        alt={displayUploads[1]?.imageName}
-                      />
-                      <div className="upload-cell-overlay">
-                        <span className="upload-cell-name">{displayUploads[1]?.imageName}</span>
+                <div className={`uploads-grid${uploadsExpanded ? " uploads-grid-expanded" : ""}`}>
+                  {uploadsExpanded ? (
+                    /* Expanded: flat grid of all images, all clickable */
+                    myImages.map((img) => (
+                      <div
+                        key={img.imageId}
+                        className="upload-cell"
+                        onClick={() => onImageClick?.(img.imageId)}
+                      >
+                        <img
+                          src={img.watermarkUrl || `https://picsum.photos/seed/${img.imageId}/400/300`}
+                          alt={img.imageName}
+                          loading="lazy"
+                        />
+                        <div className="upload-cell-overlay">
+                          <span className="upload-cell-name">{img.imageName}</span>
+                          {img.price > 0 && <span className="upload-cell-price">{formatTHB(img.price)}</span>}
+                        </div>
+                        <span className={`upload-status-dot ${img.status}`} title={img.status} />
                       </div>
-                      <span className={`upload-status-dot ${displayUploads[1]?.status}`} />
-                    </div>
+                    ))
+                  ) : (
+                    <>
+                      {/* Tall first cell */}
+                      <div
+                        className="upload-cell tall"
+                        onClick={() => onImageClick?.(displayUploads[0]?.imageId)}
+                      >
+                        <img
+                          src={displayUploads[0]?.watermarkUrl || `https://picsum.photos/seed/${displayUploads[0]?.imageId}/400/600`}
+                          alt={displayUploads[0]?.imageName}
+                        />
+                        <div className="upload-cell-overlay">
+                          <span className="upload-cell-name">{displayUploads[0]?.imageName}</span>
+                          {displayUploads[0]?.price > 0 && (
+                            <span className="upload-cell-price">{formatTHB(displayUploads[0].price)}</span>
+                          )}
+                        </div>
+                        <span className={`upload-status-dot ${displayUploads[0]?.status}`} title={displayUploads[0]?.status} />
+                      </div>
+
+                      {/* Second cell */}
+                      {displayUploads[1] && (
+                        <div
+                          className="upload-cell"
+                          onClick={() => onImageClick?.(displayUploads[1]?.imageId)}
+                        >
+                          <img
+                            src={displayUploads[1]?.watermarkUrl || `https://picsum.photos/seed/${displayUploads[1]?.imageId}/400/300`}
+                            alt={displayUploads[1]?.imageName}
+                          />
+                          <div className="upload-cell-overlay">
+                            <span className="upload-cell-name">{displayUploads[1]?.imageName}</span>
+                          </div>
+                          <span className={`upload-status-dot ${displayUploads[1]?.status}`} />
+                        </div>
+                      )}
+
+                      {/* Third cell — if +N more exist, clicking expands instead of opening */}
+                      {displayUploads[2] ? (
+                        <div
+                          className="upload-cell"
+                          onClick={() => uploadExtra > 0 ? setUploadsExpanded(true) : onImageClick?.(displayUploads[2]?.imageId)}
+                        >
+                          <img
+                            src={displayUploads[2]?.watermarkUrl || `https://picsum.photos/seed/${displayUploads[2]?.imageId}/400/300`}
+                            alt={displayUploads[2]?.imageName}
+                          />
+                          <div className="upload-cell-overlay">
+                            <span className="upload-cell-name">{displayUploads[2]?.imageName}</span>
+                          </div>
+                          {uploadExtra > 0 && (
+                            <div className="upload-more-overlay">+{uploadExtra} more</div>
+                          )}
+                        </div>
+                      ) : uploadExtra > 0 ? (
+                        <div className="upload-more-cell" onClick={() => setUploadsExpanded(true)}>
+                          <span className="upload-more-count">+{uploadExtra}</span>
+                          <span>more</span>
+                        </div>
+                      ) : null}
+                    </>
                   )}
-
-                  {/* Third cell or +N more */}
-                  {displayUploads[2] ? (
-                    <div
-                      className="upload-cell"
-                      onClick={() => onImageClick?.(displayUploads[2]?.imageId)}
-                    >
-                      <img
-                        src={displayUploads[2]?.watermarkUrl || `https://picsum.photos/seed/${displayUploads[2]?.imageId}/400/300`}
-                        alt={displayUploads[2]?.imageName}
-                      />
-                      <div className="upload-cell-overlay">
-                        <span className="upload-cell-name">{displayUploads[2]?.imageName}</span>
-                      </div>
-                      {uploadExtra > 0 && (
-                        <div className="upload-more-overlay">+{uploadExtra} more</div>
-                      )}
-                    </div>
-                  ) : uploadExtra > 0 ? (
-                    <div className="upload-more-cell">
-                      <span className="upload-more-count">+{uploadExtra}</span>
-                      <span>more</span>
-                    </div>
-                  ) : null}
                 </div>
               )}
             </div>
@@ -468,11 +535,13 @@ export default function Profile({ onBack, theme = "dark", onThemeChange, onImage
           <div className="section-block">
             <div className="section-block-header">
               <span className="section-block-title">Portfolio</span>
-              <button className="section-block-link">See all →</button>
+              <button className="section-block-link" onClick={() => setPortfolioExpanded((v) => !v)}>
+                {portfolioExpanded ? "Show less ↑" : "See all →"}
+              </button>
             </div>
             <div className="section-block-body">
               <div className="portfolio-grid">
-                {(myImages.length > 0 ? myImages : []).slice(0, 5).map((img) => (
+                {(portfolioExpanded ? myImages : myImages.slice(0, 5)).map((img) => (
                   <div
                     key={img.imageId}
                     className="portfolio-cell"
@@ -485,8 +554,8 @@ export default function Profile({ onBack, theme = "dark", onThemeChange, onImage
                     />
                   </div>
                 ))}
-                {myImages.length > 5 && (
-                  <div className="portfolio-cell portfolio-more">
+                {!portfolioExpanded && myImages.length > 5 && (
+                  <div className="portfolio-cell portfolio-more" onClick={() => setPortfolioExpanded(true)}>
                     <span className="portfolio-more-num">+{myImages.length - 5}</span>
                     <span style={{ fontSize: 10, fontFamily: "'DM Mono', monospace" }}>more</span>
                   </div>
@@ -514,10 +583,6 @@ export default function Profile({ onBack, theme = "dark", onThemeChange, onImage
                 <div>
                   <div className="stat-group-label">Revenue</div>
                   <div className="stat-row-item"><span className="stat-row-label">Total</span><span className="stat-row-value green">{formatTHB(profileStats.totalRevenue)}</span></div>
-                </div>
-                <div>
-                  <div className="chart-label">Monthly revenue trend</div>
-                  <AreaChart data={CHART_DATA} />
                 </div>
               </div>
             </div>
@@ -654,167 +719,213 @@ export default function Profile({ onBack, theme = "dark", onThemeChange, onImage
               {activeTab === "wallet" && (
                 <div className="wallet-tab">
 
-                  {/* Balance cards */}
+                  {/* ── Loading skeleton ── */}
                   {loadWallet ? (
                     <div className="wallet-skeleton-row">
                       {[1,2,3].map((i) => <div key={i} className="wallet-card-skeleton" />)}
                     </div>
-                  ) : wallet ? (
-                    <div className="wallet-balance-cards">
-                      <div className="wallet-balance-card available">
-                        <div className="wbc-label">Available</div>
-                        <div className="wbc-amount">{formatTHB(wallet.available)}</div>
-                        <div className="wbc-sub">Ready to withdraw</div>
-                      </div>
-                      <div className="wallet-balance-card earned">
-                        <div className="wbc-label">Total Earned</div>
-                        <div className="wbc-amount">{formatTHB(wallet.totalEarned)}</div>
-                        <div className="wbc-sub">Lifetime (after fees)</div>
-                      </div>
-                      <div className="wallet-balance-card pending">
-                        <div className="wbc-label">Pending</div>
-                        <div className="wbc-amount">{formatTHB(wallet.pendingWithdrawal)}</div>
-                        <div className="wbc-sub">Awaiting admin</div>
-                      </div>
+
+                  /* ── API error (network / server failure) ── */
+                  ) : walletError ? (
+                    <div className="wallet-error-state">
+                      <div className="wallet-error-icon">⚠</div>
+                      <p className="wallet-error-msg">Could not load wallet data.</p>
+                      <button className="wallet-retry-btn" onClick={fetchWalletData}>↻ Retry</button>
                     </div>
-                  ) : (
-                    <div className="wallet-error">Could not load wallet. Try again.</div>
-                  )}
 
-                  {/* Platform fee note */}
-                  <div className="wallet-fee-note">
-                    <span>ℹ</span>
-                    Platform fee is 20% per sale. You keep 80% of each purchase price.
-                    Minimum withdrawal: ฿100.
-                  </div>
-
-                  {/* Withdrawal request form */}
-                  <div className="wallet-section">
-                    <div className="wallet-section-title">Request Withdrawal</div>
-                    <form className="withdraw-form" onSubmit={handleWithdraw}>
-                      <div className="withdraw-field">
-                        <label>Amount (THB) *</label>
-                        <div className="withdraw-amount-row">
-                          <span className="withdraw-currency">฿</span>
-                          <input
-                            type="number"
-                            min="100"
-                            max={wallet?.available || 0}
-                            step="1"
-                            placeholder="0"
-                            value={wAmount}
-                            onChange={(e) => setWAmount(e.target.value)}
-                            disabled={submitting}
-                          />
-                          <button
-                            type="button"
-                            className="btn-withdraw-max"
-                            onClick={() => setWAmount(String(Math.floor(wallet?.available || 0)))}
-                            disabled={!wallet?.available || submitting}
-                          >
-                            Max
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="withdraw-field-row">
-                        <div className="withdraw-field">
-                          <label>Bank Name *</label>
-                          <input
-                            type="text"
-                            placeholder="e.g. KBank, SCB, Bangkok Bank"
-                            value={wBank}
-                            onChange={(e) => setWBank(e.target.value)}
-                            disabled={submitting}
-                            maxLength={60}
-                          />
-                        </div>
-                        <div className="withdraw-field">
-                          <label>Account Number *</label>
-                          <input
-                            type="text"
-                            placeholder="e.g. 123-4-56789-0"
-                            value={wAccNum}
-                            onChange={(e) => setWAccNum(e.target.value)}
-                            disabled={submitting}
-                            maxLength={20}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="withdraw-field">
-                        <label>Account Name *</label>
-                        <input
-                          type="text"
-                          placeholder="Full name on bank account"
-                          value={wAccName}
-                          onChange={(e) => setWAccName(e.target.value)}
-                          disabled={submitting}
-                          maxLength={100}
-                        />
-                      </div>
-
-                      <div className="withdraw-field">
-                        <label>Note (optional)</label>
-                        <input
-                          type="text"
-                          placeholder="Any additional info for admin"
-                          value={wNote}
-                          onChange={(e) => setWNote(e.target.value)}
-                          disabled={submitting}
-                          maxLength={300}
-                        />
-                      </div>
-
+                  /* ── Not yet initialized ── */
+                  ) : wallet && !wallet.initialized ? (
+                    <div className="wallet-setup-card">
+                      <div className="wallet-setup-glow" />
+                      <div className="wallet-setup-icon">💰</div>
+                      <div className="wallet-setup-title">Activate Your Seller Wallet</div>
+                      <p className="wallet-setup-desc">
+                        Track your earnings, request payouts, and view your full transaction
+                        history — all in one place.
+                      </p>
+                      <ul className="wallet-setup-features">
+                        <li><span className="wsf-icon">📈</span>Real-time earnings from image sales</li>
+                        <li><span className="wsf-icon">🏦</span>Bank withdrawal requests</li>
+                        <li><span className="wsf-icon">📋</span>Full transaction history</li>
+                        <li><span className="wsf-icon">🔒</span>Secure — 80% payout, 20% platform fee</li>
+                      </ul>
                       <button
-                        type="submit"
-                        className="btn-withdraw-submit"
-                        disabled={submitting || !wAmount || !wBank || !wAccNum || !wAccName}
+                        className="btn-wallet-activate"
+                        onClick={handleActivateWallet}
+                        disabled={activating}
                       >
-                        {submitting ? "Submitting…" : "Request Withdrawal"}
+                        {activating ? (
+                          <><span className="wallet-activate-spinner" /> Activating…</>
+                        ) : (
+                          <><span>✦</span> Activate Wallet</>
+                        )}
                       </button>
-                    </form>
-                  </div>
+                      {activateError && (
+                        <div className="wallet-activate-error">
+                          <span>⚠</span> {activateError}
+                        </div>
+                      )}
+                      <p className="wallet-setup-footnote">Free · No credit card required</p>
+                    </div>
 
-                  {/* Withdrawal history */}
-                  <div className="wallet-section">
-                    <div className="wallet-section-title">Withdrawal History</div>
-                    {loadWithdrawals ? (
-                      <div className="wallet-list-skeleton">
-                        {[1,2].map((i) => <div key={i} className="wallet-item-skeleton" />)}
+                  /* ── Wallet loaded & initialized ── */
+                  ) : wallet ? (
+                    <>
+                      {/* Balance cards */}
+                      <div className="wallet-balance-cards">
+                        <div className="wallet-balance-card available">
+                          <div className="wbc-label">Available</div>
+                          <div className="wbc-amount">{formatTHB(wallet.available)}</div>
+                          <div className="wbc-sub">Ready to withdraw</div>
+                        </div>
+                        <div className="wallet-balance-card earned">
+                          <div className="wbc-label">Total Earned</div>
+                          <div className="wbc-amount">{formatTHB(wallet.totalEarned)}</div>
+                          <div className="wbc-sub">Lifetime (after fees)</div>
+                        </div>
+                        <div className="wallet-balance-card pending">
+                          <div className="wbc-label">Pending</div>
+                          <div className="wbc-amount">{formatTHB(wallet.pendingWithdrawal)}</div>
+                          <div className="wbc-sub">Awaiting admin</div>
+                        </div>
                       </div>
-                    ) : withdrawals.length === 0 ? (
-                      <div className="wallet-empty">No withdrawal requests yet.</div>
-                    ) : (
-                      <div className="withdrawal-list">
-                        {withdrawals.map((w) => (
-                          <WithdrawalItem
-                            key={w.withdrawalId}
-                            item={w}
-                            onCancel={handleCancelWithdrawal}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Transaction history */}
-                  <div className="wallet-section">
-                    <div className="wallet-section-title">Transaction History</div>
-                    {loadTxns ? (
-                      <div className="wallet-list-skeleton">
-                        {[1,2,3].map((i) => <div key={i} className="wallet-item-skeleton" />)}
+                      {/* Platform fee note */}
+                      <div className="wallet-fee-note">
+                        <span>ℹ</span>
+                        Platform fee is 20% per sale. You keep 80% of each purchase price.
+                        Minimum withdrawal: ฿100.
                       </div>
-                    ) : transactions.length === 0 ? (
-                      <div className="wallet-empty">No transactions yet.</div>
-                    ) : (
-                      <div className="transaction-list">
-                        {transactions.map((t) => (
-                          <TransactionItem key={t.txnId} item={t} />
-                        ))}
+
+                      {/* Withdrawal request form */}
+                      <div className="wallet-section">
+                        <div className="wallet-section-title">Request Withdrawal</div>
+                        <form className="withdraw-form" onSubmit={handleWithdraw}>
+                          <div className="withdraw-field">
+                            <label>Amount (THB) *</label>
+                            <div className="withdraw-amount-row">
+                              <span className="withdraw-currency">฿</span>
+                              <input
+                                type="number"
+                                min="100"
+                                max={wallet?.available || 0}
+                                step="1"
+                                placeholder="0"
+                                value={wAmount}
+                                onChange={(e) => setWAmount(e.target.value)}
+                                disabled={submitting}
+                              />
+                              <button
+                                type="button"
+                                className="btn-withdraw-max"
+                                onClick={() => setWAmount(String(Math.floor(wallet?.available || 0)))}
+                                disabled={!wallet?.available || submitting}
+                              >
+                                Max
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="withdraw-field-row">
+                            <div className="withdraw-field">
+                              <label>Bank Name *</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. KBank, SCB, Bangkok Bank"
+                                value={wBank}
+                                onChange={(e) => setWBank(e.target.value)}
+                                disabled={submitting}
+                                maxLength={60}
+                              />
+                            </div>
+                            <div className="withdraw-field">
+                              <label>Account Number *</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. 123-4-56789-0"
+                                value={wAccNum}
+                                onChange={(e) => setWAccNum(e.target.value)}
+                                disabled={submitting}
+                                maxLength={20}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="withdraw-field">
+                            <label>Account Name *</label>
+                            <input
+                              type="text"
+                              placeholder="Full name on bank account"
+                              value={wAccName}
+                              onChange={(e) => setWAccName(e.target.value)}
+                              disabled={submitting}
+                              maxLength={100}
+                            />
+                          </div>
+
+                          <div className="withdraw-field">
+                            <label>Note (optional)</label>
+                            <input
+                              type="text"
+                              placeholder="Any additional info for admin"
+                              value={wNote}
+                              onChange={(e) => setWNote(e.target.value)}
+                              disabled={submitting}
+                              maxLength={300}
+                            />
+                          </div>
+
+                          <button
+                            type="submit"
+                            className="btn-withdraw-submit"
+                            disabled={submitting || !wAmount || !wBank || !wAccNum || !wAccName}
+                          >
+                            {submitting ? "Submitting…" : "Request Withdrawal"}
+                          </button>
+                        </form>
                       </div>
-                    )}
-                  </div>
+
+                      {/* Withdrawal history */}
+                      <div className="wallet-section">
+                        <div className="wallet-section-title">Withdrawal History</div>
+                        {loadWithdrawals ? (
+                          <div className="wallet-list-skeleton">
+                            {[1,2].map((i) => <div key={i} className="wallet-item-skeleton" />)}
+                          </div>
+                        ) : withdrawals.length === 0 ? (
+                          <div className="wallet-empty">No withdrawal requests yet.</div>
+                        ) : (
+                          <div className="withdrawal-list">
+                            {withdrawals.map((w) => (
+                              <WithdrawalItem
+                                key={w.withdrawalId}
+                                item={w}
+                                onCancel={handleCancelWithdrawal}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Transaction history */}
+                      <div className="wallet-section">
+                        <div className="wallet-section-title">Transaction History</div>
+                        {loadTxns ? (
+                          <div className="wallet-list-skeleton">
+                            {[1,2,3].map((i) => <div key={i} className="wallet-item-skeleton" />)}
+                          </div>
+                        ) : transactions.length === 0 ? (
+                          <div className="wallet-empty">No transactions yet.</div>
+                        ) : (
+                          <div className="transaction-list">
+                            {transactions.map((t) => (
+                              <TransactionItem key={t.txnId} item={t} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : null}
 
                 </div>
               )}
@@ -966,4 +1077,4 @@ function TransactionItem({ item }) {
       </div>
     </div>
   );
-} 
+}

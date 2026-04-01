@@ -10,17 +10,12 @@ export const saveToken  = (token) => localStorage.setItem(TOKEN_KEY, token);
 export const getToken   = ()      => localStorage.getItem(TOKEN_KEY);
 export const removeToken = ()     => localStorage.removeItem(TOKEN_KEY);
 
-/**
- * POST /auth/login
- * @param {string} email
- * @param {string} password
- * @returns {{ name, email, role, uid }}
- */
+// POST /auth/login
+
 export const login = async (email, password) => {
   const { data } = await api.post("/auth/login", { email, pass: password });
   saveToken(data.data.token);
-  const u = data.data.user;
-  return { name: u.username, email: u.email, role: u.role, uid: u.userId };
+  return getMe();
 };
 
 /**

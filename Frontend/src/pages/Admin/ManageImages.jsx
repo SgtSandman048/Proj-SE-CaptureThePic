@@ -38,6 +38,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { useToast } from "../../hooks/useToast";
 import { formatTHB, formatDate } from "../../utils/format";
+import iconSearch from "../../assets/icons/search.png";
 import "../../assets/styles/HomePageAdmin.css";
  
 const FILTERS = ["All","Nature","Architecture","People","Abstract","Animals","Travel","Food"];
@@ -126,7 +127,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
         <header className="black-top-bar">
           <div className="top-bar-content">
             <div className="search-container">
-              <button className="search-btn">🔍</button>
+              <button className="search-btn"><img src={iconSearch} alt="search" className="search-icon-img" /></button>
               <input type="text" placeholder="Search images, orders, users…"
                 value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>

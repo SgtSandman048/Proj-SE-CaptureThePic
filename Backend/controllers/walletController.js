@@ -3,6 +3,7 @@
 const { validationResult }       = require('express-validator');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
 const {
+  initializeWallet,
   getWallet,
   getTransactions,
   requestWithdrawal,
@@ -11,10 +12,19 @@ const {
 }                                = require('../services/walletService');
 const { MIN_WITHDRAWAL_THB }     = require('../models/walletModel');
 
-// ════════════════════════════════════════════════════════════════
+//  POST /api/wallet/initialize
+const initializeMyWallet = async (req, res) => {
+  try {
+    const wallet = await initializeWallet(req.user.uid);
+    return sendSuccess(res, 200, 'Wallet initialized', wallet);
+  } catch (err) {
+    if (err.message === 'USER_NOT_FOUND') return sendError(res, 404, 'User not found');
+    console.error('[initializeMyWallet]', err);
+    return sendError(res, 500, 'Failed to initialize wallet');
+  }
+};
+
 //  GET /api/wallet
-//  Returns seller's current balance, lifetime totals, pending amount.
-// ════════════════════════════════════════════════════════════════
 const getMyWallet = async (req, res) => {
   try {
     const wallet = await getWallet(req.user.uid);
@@ -26,11 +36,8 @@ const getMyWallet = async (req, res) => {
   }
 };
 
-// ════════════════════════════════════════════════════════════════
+
 //  GET /api/wallet/transactions
-//  Returns paginated transaction history (sales + withdrawals).
-//  ?limit=20  ?startAfter=txnId
-// ════════════════════════════════════════════════════════════════
 const getMyTransactions = async (req, res) => {
   try {
     const { limit, startAfter } = req.query;
@@ -49,11 +56,8 @@ const getMyTransactions = async (req, res) => {
   }
 };
 
-// ════════════════════════════════════════════════════════════════
+
 //  POST /api/wallet/withdraw
-//  Create a new withdrawal request.
-//  Body: { amount, bankName, accountNumber, accountName, note? }
-// ════════════════════════════════════════════════════════════════
 const createWithdrawal = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -87,10 +91,8 @@ const createWithdrawal = async (req, res) => {
   }
 };
 
-// ════════════════════════════════════════════════════════════════
+
 //  GET /api/wallet/withdrawals
-//  List all withdrawal requests for this seller.
-// ════════════════════════════════════════════════════════════════
 const listMyWithdrawals = async (req, res) => {
   try {
     const withdrawals = await getMyWithdrawals(req.user.uid, {
@@ -106,10 +108,8 @@ const listMyWithdrawals = async (req, res) => {
   }
 };
 
-// ════════════════════════════════════════════════════════════════
+
 //  DELETE /api/wallet/withdrawals/:id
-//  Cancel a pending withdrawal request (seller only).
-// ════════════════════════════════════════════════════════════════
 const cancelMyWithdrawal = async (req, res) => {
   try {
     await cancelWithdrawal(req.params.id, req.user.uid);
@@ -125,6 +125,7 @@ const cancelMyWithdrawal = async (req, res) => {
 };
 
 module.exports = {
+  initializeMyWallet,
   getMyWallet,
   getMyTransactions,
   createWithdrawal,

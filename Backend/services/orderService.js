@@ -3,7 +3,7 @@
 const { db: getDb } = require('../config/firebase');
 const { cloudinary, generateSignedUrl } = require('../config/cloudinary');
 const { calculatePrice } = require('../utils/priceCalculator');
-const { createNotification } = require('./notificationService');
+const { createNotification, notifyAdminsSlipUploaded } = require('./notificationService');
 
 const db = getDb();
 
@@ -55,6 +55,7 @@ const createOrder = async ({ userId, imageId }) => {
   await createNotification(userId, {
     type: 'purchase_complete',
     message: `Your order for "${image.imageName}" has been placed successfully`,
+    meta:    { orderId: orderRef.id, imageName: image.imageName },
   });
 
   // 6. Notify seller — someone bought their photo
@@ -62,6 +63,7 @@ const createOrder = async ({ userId, imageId }) => {
     await createNotification(image.sellerId, {
       type: 'photo_sold',
       message: `Someone purchased your photo "${image.imageName}"`,
+      meta:    { orderId: orderRef.id, imageName: image.imageName },
     });
   }
 
@@ -107,6 +109,15 @@ const uploadSlip = async ({ orderId, userId, file }) => {
   await createNotification(userId, {
     type: 'payment_received',
     message: `Your payment slip for "${order.imageName}" has been received and is being verified`,
+    meta:    { orderId, imageName: order.imageName },
+  });
+
+  // Notify admin
+  notifyAdminsSlipUploaded({
+    orderId,
+    imageName: order.imageName,
+    userId,
+    amount:    order.totalAmount,
   });
 };
 

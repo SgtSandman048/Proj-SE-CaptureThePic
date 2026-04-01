@@ -1,11 +1,12 @@
 // services/notificationService.js
 
 const { db, FieldValue } = require('../config/firebase');
+const NOTIF_COL = 'notifications';
 
 // Get all notifications for a user
 const getNotifications = async (userId) => {
   const snapshot = await db()
-    .collection('notifications')
+    .collection(NOTIF_COL)
     .where('userId', '==', userId)
     .orderBy('createdAt', 'desc')
     .get();
@@ -19,7 +20,7 @@ const getNotifications = async (userId) => {
 
 // Mark one notification as read
 const markAsRead = async (notifId, userId) => {
-  const ref = db().collection('notifications').doc(notifId);
+  const ref = db().collection(NOTIF_COL).doc(notifId);
   const doc = await ref.get();
 
   if (!doc.exists) throw new Error('NOT_FOUND');
@@ -31,7 +32,7 @@ const markAsRead = async (notifId, userId) => {
 // Mark all notifications as read for a user
 const markAllAsRead = async (userId) => {
   const snapshot = await db()
-    .collection('notifications')
+    .collection(NOTIF_COL)
     .where('userId', '==', userId)
     .where('read', '==', false)
     .get();
@@ -42,11 +43,12 @@ const markAllAsRead = async (userId) => {
 };
 
 // Create a notification (called from other services)
-const createNotification = async (userId, { type, message }) => {
-  await db().collection('notifications').add({
+const createNotification = async (userId, { type, message, meta }) => {
+  await db().collection(NOTIF_COL).add({
     userId,
     type,
     message,
+    meta,
     read: false,
     createdAt: FieldValue.serverTimestamp(),
   });

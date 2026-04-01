@@ -2,7 +2,7 @@
 
 const { db, FieldValue } = require('../config/firebase');
 const { IMAGE_STATUS } = require('../models/imageModel');
-const { createNotification } = require('./notificationService');
+const { createNotification, notifyAdminsNewImage, } = require('./notificationService');
 
 const COL = 'images';
 
@@ -21,6 +21,13 @@ const createImage = async (imageDocument) => {
   await createNotification(imageDocument.sellerId, {
     type: 'photo_uploaded',
     message: `Your photo "${imageDocument.imageName}" has been uploaded and is pending review`,
+    meta:    { imageId: ref.id, imageName: imageDocument.imageName },
+  });
+
+  notifyAdminsNewImage({
+    imageId:    ref.id,
+    imageName:  imageDocument.imageName,
+    sellerName: imageDocument.sellerName || null,
   });
 
   return ref.id;

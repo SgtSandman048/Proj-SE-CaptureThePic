@@ -16,14 +16,8 @@ const USERS_COL        = 'users';
 const TRANSACTIONS_COL = 'transactions';
 const WITHDRAWALS_COL  = 'withdrawalRequests';
 
-// ════════════════════════════════════════════════════════════════
-//  BALANCE
-// ════════════════════════════════════════════════════════════════
 
-/**
- * Get a seller's current wallet state.
- * Returns balance + lifetime totals + pending withdrawal amount.
- */
+// Get Balance
 const getWallet = async (sellerId) => {
   const userDoc = await db.collection(USERS_COL).doc(sellerId).get();
   if (!userDoc.exists) throw new Error('USER_NOT_FOUND');
@@ -42,6 +36,7 @@ const getWallet = async (sellerId) => {
   );
 
   return {
+    initialized:      user.walletInitialized === true || (user.sellerBalance > 0) || (user.sellerTotalEarned > 0),
     balance:          parseFloat((user.sellerBalance     || 0).toFixed(2)),
     totalEarned:      parseFloat((user.sellerTotalEarned || 0).toFixed(2)),
     totalWithdrawn:   parseFloat((user.sellerTotalWithdrawn || 0).toFixed(2)),
@@ -52,21 +47,31 @@ const getWallet = async (sellerId) => {
   };
 };
 
-// ════════════════════════════════════════════════════════════════
-//  CREDIT SELLER ON ORDER COMPLETION
-//  Called by adminService.verifyOrder when status → 'completed'
-// ════════════════════════════════════════════════════════════════
+// Create Wallet
+const initializeWallet = async (sellerId) => {
+  const userRef = db.collection(USERS_COL).doc(sellerId);
+  const userDoc = await userRef.get();
+  if (!userDoc.exists) throw new Error('USER_NOT_FOUND');
+ 
+  const user = userDoc.data();
+  if (user.walletInitialized) {
+    // Already set up — just return current state
+    return getWallet(sellerId);
+  }
+ 
+  await userRef.update({
+    walletInitialized:    true,
+    sellerBalance:        user.sellerBalance        ?? 0,
+    sellerTotalEarned:    user.sellerTotalEarned    ?? 0,
+    sellerTotalWithdrawn: user.sellerTotalWithdrawn ?? 0,
+    updatedAt:            new Date().toISOString(),
+  });
+ 
+  console.log(`[wallet] Wallet initialized for seller: ${sellerId}`);
+  return getWallet(sellerId);
+};
 
-/**
- * Credit seller's balance when their image is sold.
- * Also pushes a notification to the seller.
- * @param {object} opts
- * @param {string} opts.sellerId
- * @param {string} opts.orderId
- * @param {string} opts.imageId
- * @param {string} opts.imageName
- * @param {number} opts.salePrice  — order totalAmount
- */
+// Create seller credit after image sold
 const creditSellerForSale = async ({ sellerId, orderId, imageId, imageName, salePrice }) => {
   const { gross, platformFee, net } = calculateSellerPayout(salePrice);
 
@@ -112,13 +117,7 @@ const creditSellerForSale = async ({ sellerId, orderId, imageId, imageName, sale
   return { gross, platformFee, net };
 };
 
-// ════════════════════════════════════════════════════════════════
-//  TRANSACTIONS
-// ════════════════════════════════════════════════════════════════
-
-/**
- * Get paginated transaction history for a seller.
- */
+// Load Transaction
 const getTransactions = async (sellerId, { limit = 20, startAfter = null } = {}) => {
   let query = db
     .collection(TRANSACTIONS_COL)
@@ -135,14 +134,7 @@ const getTransactions = async (sellerId, { limit = 20, startAfter = null } = {})
   return snap.docs.map((d) => ({ txnId: d.id, ...d.data() }));
 };
 
-// ════════════════════════════════════════════════════════════════
-//  WITHDRAWAL REQUESTS
-// ════════════════════════════════════════════════════════════════
-
-/**
- * Create a withdrawal request.
- * Validates available balance (balance minus any already-pending withdrawals).
- */
+// Withdrawal Request
 const requestWithdrawal = async (sellerId, { amount, bankName, accountNumber, accountName, note }) => {
   if (amount < MIN_WITHDRAWAL_THB) {
     throw new Error(`BELOW_MINIMUM:${MIN_WITHDRAWAL_THB}`);
@@ -173,9 +165,7 @@ const requestWithdrawal = async (sellerId, { amount, bankName, accountNumber, ac
   return { withdrawalId: ref.id, amount, status: WITHDRAWAL_STATUS.PENDING };
 };
 
-/**
- * Cancel a pending withdrawal request (seller action).
- */
+// Cancel request
 const cancelWithdrawal = async (withdrawalId, sellerId) => {
   const ref  = db.collection(WITHDRAWALS_COL).doc(withdrawalId);
   const snap = await ref.get();
@@ -192,9 +182,7 @@ const cancelWithdrawal = async (withdrawalId, sellerId) => {
   });
 };
 
-/**
- * Get all withdrawal requests for a seller.
- */
+// Load Withdrawal
 const getMyWithdrawals = async (sellerId, { limit = 20 } = {}) => {
   const snap = await db
     .collection(WITHDRAWALS_COL)
@@ -206,15 +194,10 @@ const getMyWithdrawals = async (sellerId, { limit = 20 } = {}) => {
   return snap.docs.map((d) => ({ withdrawalId: d.id, ...d.data() }));
 };
 
-// ════════════════════════════════════════════════════════════════
-//  ADMIN — PROCESS WITHDRAWAL
-// ════════════════════════════════════════════════════════════════
 
-/**
- * Admin approves or rejects a withdrawal request.
- * On approval: deducts from seller balance + writes a withdrawal transaction.
- * On rejection: frees the reserved amount back to available.
- */
+// Admin Section
+
+// Verify Withdrawal
 const processWithdrawal = async (withdrawalId, { status, adminNote, adminUid }) => {
   if (![WITHDRAWAL_STATUS.APPROVED, WITHDRAWAL_STATUS.REJECTED].includes(status)) {
     throw new Error('INVALID_STATUS');
@@ -294,9 +277,7 @@ const processWithdrawal = async (withdrawalId, { status, adminNote, adminUid }) 
   return { withdrawalId, status };
 };
 
-/**
- * Get all pending withdrawal requests (admin view).
- */
+// Get Pending Withdrawal
 const getPendingWithdrawals = async ({ limit = 50, all = false } = {}) => {
   let query = db.collection(WITHDRAWALS_COL).orderBy('createdAt', 'asc').limit(limit);
 
@@ -306,10 +287,8 @@ const getPendingWithdrawals = async ({ limit = 50, all = false } = {}) => {
   return snap.docs.map((d) => ({ withdrawalId: d.id, ...d.data() }));
 };
 
-// ════════════════════════════════════════════════════════════════
-//  NOTIFICATIONS (fire-and-forget helpers)
-// ════════════════════════════════════════════════════════════════
 
+// Notification Section
 const createSaleNotification = async (sellerId, imageName, net) => {
   await db.collection('notifications').add({
     userId:    sellerId,
@@ -337,6 +316,7 @@ const createWithdrawalNotification = async (sellerId, amount, status) => {
 
 module.exports = {
   getWallet,
+  initializeWallet,
   creditSellerForSale,
   getTransactions,
   requestWithdrawal,

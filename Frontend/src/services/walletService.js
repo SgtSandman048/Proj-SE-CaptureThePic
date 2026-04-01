@@ -3,6 +3,19 @@
 
 import api from "./api";
 
+// ── Wallet initialization ──────────────────────────────────────
+
+/**
+ * POST /wallet/initialize
+ * One-time call to activate the seller wallet for a new user.
+ * Returns the freshly initialized wallet data.
+ */
+export const initializeWallet = async () => {
+  const { data } = await api.post("/wallet/initialize");
+  if (!data.success) throw new Error(data.message || "Failed to initialize wallet");
+  return data.data;
+};
+
 // ── Wallet balance ─────────────────────────────────────────────
 
 /**

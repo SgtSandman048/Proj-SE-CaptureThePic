@@ -5,6 +5,7 @@ const { body }       = require('express-validator');
 const router         = express.Router();
 
 const {
+  initializeMyWallet,
   getMyWallet,
   getMyTransactions,
   createWithdrawal,
@@ -14,9 +15,10 @@ const {
 
 const { authenticate }  = require('../middleware/authMiddleware');
 const { requireUser }   = require('../middleware/roleMiddleware');
+const { checkBan } = require('../middleware/banMiddleware');
 
 // All wallet routes require a valid authenticated user
-router.use(authenticate, requireUser);
+router.use(authenticate, checkBan, requireUser);
 
 // ── Validators ───────────────────────────────────────────────
 const withdrawalValidators = [
@@ -39,23 +41,17 @@ const withdrawalValidators = [
     .isLength({ max: 300 }).withMessage('note must be under 300 characters'),
 ];
 
-// ════════════════════════════════════════════════════════════════
-//  ROUTES
-// ════════════════════════════════════════════════════════════════
 
-// GET  /api/wallet                  — current balance + totals
+router.post('/initialize', initializeMyWallet);
+
 router.get('/', getMyWallet);
 
-// GET  /api/wallet/transactions     — paginated transaction history
 router.get('/transactions', getMyTransactions);
 
-// GET  /api/wallet/withdrawals      — all my withdrawal requests
 router.get('/withdrawals', listMyWithdrawals);
 
-// POST /api/wallet/withdraw         — create withdrawal request
 router.post('/withdraw', withdrawalValidators, createWithdrawal);
 
-// DELETE /api/wallet/withdrawals/:id — cancel pending withdrawal
 router.delete('/withdrawals/:id', cancelMyWithdrawal);
 
 module.exports = router;
