@@ -31,8 +31,7 @@ const uploadToCloudinary = (buffer, options) =>
 //  GET /api/images
 const getImages = async (req, res) => {
   try {
-    const { category, search, minPrice, maxPrice, limit, startAfter } = req.query;
-
+    const { category, search, tag, sellerName, minPrice, maxPrice, limit, startAfter } = req.query;
     // 1. Check validation
     if (category && !IMAGE_CATEGORIES.includes(category)) {
       return sendError(res, 400, `Invalid category. Valid options: ${IMAGE_CATEGORIES.join(', ')}`);
@@ -51,13 +50,15 @@ const getImages = async (req, res) => {
     }
 
     // 2. Fetch from DB
-    const images = await getApprovedImages({
-      category: category || null,
-      search: search || null,
-      minPrice: minPrice ? parseFloat(minPrice) : null,
-      maxPrice: maxPrice ? parseFloat(maxPrice) : null,
-      limit: limitNum,
-      startAfter: startAfter || null,
+   const images = await getApprovedImages({
+    category: category || null,
+    search: search || null,
+    tag: tag || null,
+    sellerName: sellerName || null,
+    minPrice: minPrice ? parseFloat(minPrice) : null,
+    maxPrice: maxPrice ? parseFloat(maxPrice) : null,
+    limit: limitNum,
+    startAfter: startAfter || null,
     });
 
     // 3. Mapping response
@@ -210,7 +211,12 @@ const uploadImage = async (req, res) => {
 
     // 9. Save to DB
     const imageId = await createImage(imageDoc);
-
+    
+    const { createNotification } = require('../services/notificationService');
+    await createNotification(req.user.uid, {
+      type: 'photo_uploaded',
+      message: `Your photo "${imageName}" has been uploaded and is pending review`,
+    }).catch(() => {});  // silent fail — don't block upload if notification fails
     //logger.info(`[UPLOAD] Image "${imageName}" uploaded by ${req.user.username} (${req.user.uid}) → ID: ${imageId}`);
     console.log(`[UPLOAD] Image "${imageName}" uploaded by ${req.user.username} (${req.user.uid}) → ID: ${imageId}`);
 
@@ -450,4 +456,20 @@ const updateImageDetail = async (req, res) => {
   }
 };
 
-module.exports = { getImages, uploadImage, getImageDetail, deleteImage, getMyImages, updateImage: updateImageDetail};
+// GET /api/images/search/users?q=username
+const searchUsers = async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) return sendSuccess(res, 200, 'No query', { users: [] });
+
+    const { searchUsers: searchUsersService } = require('../services/userService');
+    const users = await searchUsersService(q);
+
+    return sendSuccess(res, 200, 'Users found', { users });
+  } catch (err) {
+    console.error('[searchUsers]', err);
+    return sendError(res, 500, 'Failed to search users');
+  }
+};
+
+module.exports = { getImages, uploadImage, getImageDetail, deleteImage, getMyImages, updateImage: updateImageDetail, searchUsers };
