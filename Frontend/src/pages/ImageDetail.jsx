@@ -6,6 +6,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/common/Toast";
 import { getImageById, deleteImage } from "../services/imageService";
+import { getPublicUserProfile } from "../services/imageService";
 import { createOrder, getMyOrders, getDownloadUrl } from "../services/orderService";
 import { formatTHB, formatDate, formatFileSize } from "../utils/format";
 import "../assets/styles/ImageDetail.css";
@@ -31,6 +32,10 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
 
   const [deleting,      setDeleting]      = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [sellerProfile,     setSellerProfile]     = useState(null);
+  const [showSellerModal,   setShowSellerModal]   = useState(false);
+  const [sellerImages,      setSellerImages]      = useState([]);
+  const [loadingSellerProfile, setLoadingSellerProfile] = useState(false);
 
   useEffect(() => {
     if (!imageId) return;
@@ -56,6 +61,13 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
                 setSimilar(filtered);
               }
             })
+            .catch(() => {});
+        }
+
+        // Fetch seller's public profile
+        if (img.sellerId) {
+          getPublicUserProfile(img.sellerId)
+            .then(setSellerProfile)
             .catch(() => {});
         }
       })
@@ -125,6 +137,23 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
   // Search handler — goes back to home with search query
   const handleSearch = (query) => {
     onBack?.(query);
+  };
+
+  const handleCheckSellerProfile = async () => {
+    setShowSellerModal(true);
+    if (sellerImages.length === 0 && image?.sellerName) {
+      setLoadingSellerProfile(true);
+      try {
+        const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+        const res = await fetch(`${API_BASE}/images?sellerName=${encodeURIComponent(image.sellerName)}&limit=6`);
+        const data = await res.json();
+        if (data.success) {
+          setSellerImages((data.data?.images || []).filter((s) => s.imageId !== imageId).slice(0, 6));
+        }
+      } catch { /* silent */ } finally {
+        setLoadingSellerProfile(false);
+      }
+    }
   };
 
   if (loading) {
@@ -337,17 +366,25 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
           <div className="seller-panel">
             <div className="seller-label">Photographer</div>
             <div className="seller-identity">
-              <div className="seller-avatar-placeholder">📷</div>
+              <SellerAvatar
+                src={sellerProfile?.profileImage}
+                name={image.sellerName}
+              />
               <div className="seller-info">
-                <div className="seller-name">{image.sellerName || "Unknown Artist"}</div>
-                <div className="seller-stats">{image.purchases ?? 0} sales · since {formatDate(image.uploadDate).split(" ").pop()}</div>
+                <div className="seller-name" onClick={() => handleSearch(`@${image.sellerName}`)}>
+                  {image.sellerName || "Unknown Artist"}
+                </div>
+                <div className="seller-stats">
+                  {sellerProfile?.sellerProfile?.totalSales ?? image.purchases ?? 0} sales
+                  {sellerProfile?.location ? ` · ${sellerProfile.location}` : ""}
+                </div>
               </div>
             </div>
             <button
               className="btn-view-profile"
-              onClick={() => handleSearch(`@${image.sellerName}`)}
+              onClick={handleCheckSellerProfile}
             >
-              View Profile & More Images →
+              Check Seller Profile →
             </button>
           </div>
         </div>
@@ -362,6 +399,18 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
             onClick={(e) => e.stopPropagation()}
           />
         </div>
+      )}
+
+      {showSellerModal && (
+        <SellerProfileModal
+          seller={sellerProfile}
+          sellerName={image.sellerName}
+          sellerImages={sellerImages}
+          loading={loadingSellerProfile}
+          onClose={() => setShowSellerModal(false)}
+          onImageClick={onNavigate}
+          onBrowseAll={() => { setShowSellerModal(false); handleSearch(`@${image.sellerName}`); }}
+        />
       )}
 
       <Toast toast={toast} />
@@ -383,5 +432,142 @@ function DetailTopBar({ onSearch }) {
       </div>
       <div className="logo">Imagery</div>
     </header>
+  );
+}
+
+// ── Seller Avatar — real photo or camera-icon fallback ─────────
+function SellerAvatar({ src, name, size = 44 }) {
+  const [broken, setBroken] = useState(false);
+  if (!src || broken) {
+    return (
+      <div className="seller-avatar-placeholder" style={{ width: size, height: size }}>
+        📷
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={name}
+      className="seller-avatar"
+      style={{ width: size, height: size }}
+      onError={() => setBroken(true)}
+    />
+  );
+}
+
+// ── Seller Profile Modal ───────────────────────────────────────
+function SellerProfileModal({ seller, sellerName, sellerImages, loading, onClose, onImageClick, onBrowseAll }) {
+
+  // close on Escape
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  const displayName = seller?.username || sellerName || "Unknown Artist";
+  const joinYear    = seller?.createdAt
+    ? new Date(seller.createdAt._seconds ? seller.createdAt._seconds * 1000 : seller.createdAt).getFullYear()
+    : null;
+  const totalSales  = seller?.sellerProfile?.totalSales ?? 0;
+  const rating      = seller?.sellerProfile?.rating     ?? 0;
+  const ratingCount = seller?.sellerProfile?.ratingCount ?? 0;
+
+  return (
+    <div className="seller-modal-backdrop" onClick={onClose}>
+      <div className="seller-modal" onClick={(e) => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="seller-modal-header">
+          <button className="seller-modal-close" onClick={onClose}>✕</button>
+          <div className="seller-modal-cover" />
+          <div className="seller-modal-hero">
+            <SellerAvatar src={seller?.profileImage} name={displayName} size={80} />
+            <div className="seller-modal-identity">
+              <h2 className="seller-modal-name">{displayName}</h2>
+              {seller?.location && (
+                <span className="seller-modal-location">📍 {seller.location}</span>
+              )}
+              {joinYear && (
+                <span className="seller-modal-since">Member since {joinYear}</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Stats row */}
+        <div className="seller-modal-stats">
+          <div className="seller-stat-item">
+            <span className="seller-stat-value">{totalSales.toLocaleString()}</span>
+            <span className="seller-stat-label">Total Sales</span>
+          </div>
+          <div className="seller-stat-divider" />
+          <div className="seller-stat-item">
+            <span className="seller-stat-value">
+              {ratingCount > 0 ? `${rating.toFixed(1)} ★` : "—"}
+            </span>
+            <span className="seller-stat-label">
+              {ratingCount > 0 ? `${ratingCount} reviews` : "No reviews yet"}
+            </span>
+          </div>
+          <div className="seller-stat-divider" />
+          <div className="seller-stat-item">
+            <span className="seller-stat-value">{sellerImages.length > 0 ? `${sellerImages.length}+` : "—"}</span>
+            <span className="seller-stat-label">Images Listed</span>
+          </div>
+        </div>
+
+        {/* Bio */}
+        {seller?.bio && (
+          <div className="seller-modal-bio">
+            <p>{seller.bio}</p>
+          </div>
+        )}
+
+        {/* Portfolio preview */}
+        <div className="seller-modal-portfolio">
+          <div className="seller-modal-section-title">Portfolio Preview</div>
+          {loading ? (
+            <div className="seller-portfolio-grid">
+              {[1,2,3,4,5,6].map((i) => (
+                <div key={i} className="seller-portfolio-skeleton" />
+              ))}
+            </div>
+          ) : sellerImages.length === 0 ? (
+            <p className="seller-no-images">No other images found from this photographer.</p>
+          ) : (
+            <div className="seller-portfolio-grid">
+              {sellerImages.map((img) => (
+                <div
+                  key={img.imageId}
+                  className="seller-portfolio-item"
+                  onClick={() => { onClose(); onImageClick?.(img.imageId); }}
+                  title={img.imageName}
+                >
+                  <img
+                    src={img.watermarkUrl || `https://picsum.photos/seed/${img.imageId}/300/200`}
+                    alt={img.imageName}
+                    loading="lazy"
+                  />
+                  <div className="seller-portfolio-overlay">
+                    <span className="seller-portfolio-price">
+                      ฿{(img.price || 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer CTA */}
+        <div className="seller-modal-footer">
+          <button className="seller-modal-browse-btn" onClick={onBrowseAll}>
+            Browse All Images by {displayName} →
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -4,6 +4,7 @@
 import { useState } from "react";
 import "./Sidebar.css";
 import NotificationBell from "../NotificationBell";
+import userIcon from "../../assets/icons/user.png";
 
 const PREF_GROUPS = [
   { icon: "🌿", label: "ธรรมชาติ",          tags: ["Nature","Landscape","Sea","Mountain","Forest","Flower"] },
@@ -12,6 +13,38 @@ const PREF_GROUPS = [
   { icon: "🍕", label: "อาหาร",              tags: ["Food","Drink","Cafe","Bakery","Cooking"] },
   { icon: "💻", label: "ธุรกิจ/เทคโนโลยี",  tags: ["Business","Technology","Office","Working","Remote Work"] },
 ];
+
+/**
+ * ProfileAvatar
+ * Renders the user's real profile image if available,
+ * or falls back to the default user icon / admin symbol.
+ */
+function ProfileAvatar({ user, isAdmin }) {
+  const [imgError, setImgError] = useState(false);
+
+  const hasPhoto = !isAdmin && user?.profileImage && !imgError;
+
+  return (
+    <div className={`profile-avatar ${isAdmin ? "admin-avatar" : ""}`}>
+      {hasPhoto ? (
+        <img
+          src={user.profileImage}
+          alt={user?.name ?? "Profile"}
+          className="sidebar-avatar-img"
+          onError={() => setImgError(true)}
+        />
+      ) : isAdmin ? (
+        "⚙"
+      ) : (
+        <img
+          src={userIcon}
+          alt="User"
+          className="sidebar-icon"
+        />
+      )}
+    </div>
+  );
+}
 
 export default function Sidebar({
   user,
@@ -106,9 +139,7 @@ export default function Sidebar({
       <div className="user-account">
         <div className="user-label">Your Account</div>
         <div className="profile">
-          <div className={`profile-avatar ${isAdmin ? "admin-avatar" : ""}`}>
-            {isAdmin ? "⚙" : "👤"}
-          </div>
+          <ProfileAvatar user={user} isAdmin={isAdmin} />
           <div>
             <div className="profile-name">{user?.name ?? "Guest"}</div>
             <div className={`profile-role ${isAdmin ? "admin-role-tag" : ""}`}>

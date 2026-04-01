@@ -742,3 +742,292 @@
   .purchase-card { position: static; }
   .similar-grid { grid-template-columns: repeat(3, 1fr); }
 }
+/* ── Seller Avatar (real image) ───────────────────────────────── */
+.seller-avatar {
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(79,195,195,0.4);
+  background: #253047;
+  flex-shrink: 0;
+}
+
+/* ── Seller Profile Modal Backdrop ───────────────────────────── */
+.seller-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: modalFadeIn 0.2s ease;
+}
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Modal Card ───────────────────────────────────────────────── */
+.seller-modal {
+  background: #0f1520;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 88vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  animation: modalSlideUp 0.28s cubic-bezier(0.34,1.56,0.64,1);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(79,195,195,0.15) transparent;
+}
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(28px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+.seller-modal::-webkit-scrollbar { width: 4px; }
+.seller-modal::-webkit-scrollbar-thumb { background: rgba(79,195,195,0.2); border-radius: 4px; }
+
+/* ── Close button ─────────────────────────────────────────────── */
+.seller-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.seller-modal-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+/* ── Cover + Hero ─────────────────────────────────────────────── */
+.seller-modal-header {
+  position: relative;
+  padding-bottom: 0;
+}
+.seller-modal-cover {
+  height: 96px;
+  background: linear-gradient(135deg, #0d1e2e 0%, #122030 40%, #0a1a28 70%, #101c2c 100%);
+  border-radius: 20px 20px 0 0;
+  position: relative;
+  overflow: hidden;
+}
+.seller-modal-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 18px,
+    rgba(79,195,195,0.04) 18px,
+    rgba(79,195,195,0.04) 19px
+  );
+}
+.seller-modal-hero {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 0 24px 20px;
+  margin-top: -36px;
+  position: relative;
+  z-index: 2;
+}
+.seller-modal-hero .seller-avatar,
+.seller-modal-hero .seller-avatar-placeholder {
+  width: 80px !important;
+  height: 80px !important;
+  border: 3px solid #0f1520;
+  border-radius: 50%;
+  flex-shrink: 0;
+  font-size: 32px;
+}
+.seller-modal-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 4px;
+}
+.seller-modal-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin: 0;
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.2;
+}
+.seller-modal-location {
+  font-size: 12px;
+  color: #4a5568;
+  font-family: 'DM Mono', monospace;
+}
+.seller-modal-since {
+  font-size: 11px;
+  color: #4a5568;
+  font-family: 'DM Mono', monospace;
+}
+
+/* ── Stats Row ────────────────────────────────────────────────── */
+.seller-modal-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  background: #141921;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding: 16px 24px;
+}
+.seller-stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.seller-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #4fc3c3;
+  font-family: 'DM Mono', monospace;
+}
+.seller-stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #4a5568;
+  font-family: 'DM Mono', monospace;
+}
+.seller-stat-divider {
+  width: 1px;
+  height: 36px;
+  background: rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+
+/* ── Bio ──────────────────────────────────────────────────────── */
+.seller-modal-bio {
+  padding: 18px 24px 0;
+}
+.seller-modal-bio p {
+  font-size: 13.5px;
+  color: #6b7280;
+  line-height: 1.7;
+  font-family: 'DM Sans', sans-serif;
+  margin: 0;
+}
+
+/* ── Portfolio ────────────────────────────────────────────────── */
+.seller-modal-portfolio {
+  padding: 20px 24px;
+}
+.seller-modal-section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #4a5568;
+  font-family: 'DM Mono', monospace;
+  margin-bottom: 14px;
+}
+.seller-portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.seller-portfolio-item {
+  position: relative;
+  aspect-ratio: 4/3;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #141921;
+  border: 1px solid rgba(255,255,255,0.05);
+  transition: transform 0.2s, border-color 0.2s;
+}
+.seller-portfolio-item:hover {
+  transform: scale(1.02);
+  border-color: rgba(79,195,195,0.3);
+}
+.seller-portfolio-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.seller-portfolio-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 55%);
+  display: flex;
+  align-items: flex-end;
+  padding: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.seller-portfolio-item:hover .seller-portfolio-overlay { opacity: 1; }
+.seller-portfolio-price {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4fc3c3;
+  font-family: 'DM Mono', monospace;
+}
+.seller-portfolio-skeleton {
+  aspect-ratio: 4/3;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #161b25 25%, #1e2535 50%, #161b25 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+.seller-no-images {
+  font-size: 12px;
+  color: #4a5568;
+  font-family: 'DM Mono', monospace;
+  text-align: center;
+  padding: 24px 0;
+}
+
+/* ── Footer CTA ───────────────────────────────────────────────── */
+.seller-modal-footer {
+  padding: 0 24px 24px;
+}
+.seller-modal-browse-btn {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(135deg, rgba(79,195,195,0.12), rgba(79,195,195,0.06));
+  border: 1px solid rgba(79,195,195,0.25);
+  border-radius: 10px;
+  color: #4fc3c3;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.3px;
+}
+.seller-modal-browse-btn:hover {
+  background: linear-gradient(135deg, rgba(79,195,195,0.2), rgba(79,195,195,0.1));
+  border-color: rgba(79,195,195,0.45);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(79,195,195,0.12);
+}
+
+@media (max-width: 600px) {
+  .seller-modal {
+    max-height: 92vh;
+    border-radius: 16px;
+  }
+  .seller-portfolio-grid { grid-template-columns: repeat(2, 1fr); }
+}

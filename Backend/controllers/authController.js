@@ -390,6 +390,21 @@ const changePassword = async (req, res) => {
   }
 };*/
 
+//  GET /auth/users/:uid  — public profile
+const getPublicProfile = async (req, res) => {
+  try {
+    const { uid } = req.params;
+    if (!uid) return sendError(res, 400, 'User ID is required');
+    const user = await getUserById(uid);
+    if (!user || !user.isActive) return sendError(res, 404, 'User not found');
+    const { publicProfile } = require('../models/userModel');
+    return sendSuccess(res, 200, 'Public profile fetched', publicProfile(user));
+  } catch (error) {
+    console.error('[getPublicProfile]', error);
+    return sendError(res, 500, 'Failed to fetch public profile');
+  }
+};
+
 module.exports = { 
   register, 
   login, 
@@ -398,5 +413,6 @@ module.exports = {
   getMe,
   updateProfile,
   updateAvatar, 
-  //changePassword 
+  //changePassword, 
+  getPublicProfile,
 };

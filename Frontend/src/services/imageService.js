@@ -4,11 +4,7 @@
 import api from "./api";
 import { getToken } from "./authService";
 
-/**
- * GET /images  — fetch gallery images with optional filters.
- * @param {{ category?: string, search?: string }} params
- * @returns {Array}
- */
+// GET /images  — fetch gallery images with optional filters.
 export const getImages = async ({ category, search, tag, sellerName } = {}) => {
   const params = new URLSearchParams();
   if (category && category !== "All") params.set("category", category.toLowerCase());
@@ -31,42 +27,30 @@ export const getImages = async ({ category, search, tag, sellerName } = {}) => {
   return data.data?.images || [];
 };
 
-/**
- * GET /images/:id  — fetch a single image's full details.
- * @param {string} imageId
- * @returns {object}
- */
+
+// GET /images/:id  — fetch a single image's full details.
 export const getImageById = async (imageId) => {
   const { data } = await api.get(`/images/${imageId}`);
   if (!data.success) throw new Error(data.message || "Image not found.");
   return data.data;
 };
 
-/**
- * GET /images/my  — fetch images uploaded by the current seller.
- * @returns {Array}
- */
+
+// GET /images/my  — fetch images uploaded by the current seller.
 export const getMyImages = async () => {
   const { data } = await api.get("/images/my");
   return data.data?.images || [];
 };
 
-/**
- * DELETE /images/:id  — admin delete an image.
- * @param {string} imageId
- */
+
+// DELETE /images/:id  — admin delete an image.
 export const deleteImage = async (imageId) => {
   const { data } = await api.delete(`/images/${imageId}`);
   if (!data.success) throw new Error(data.message || "Delete failed.");
 };
 
-/**
- * POST /images/upload  — multipart form upload with XHR for progress tracking.
- * @param {File}   file
- * @param {object} meta  { imageName, description, price, category, tags }
- * @param {(pct: number) => void} onProgress  — called with 0–100
- * @returns {Promise<{ imageId, watermarkUrl }>}
- */
+
+// POST /images/upload  — multipart form upload with XHR for progress tracking.
 export const uploadImage = (file, meta, onProgress) =>
   new Promise((resolve, reject) => {
     const form = new FormData();
@@ -113,12 +97,20 @@ export const uploadImage = (file, meta, onProgress) =>
     uploadImage._lastXhr = xhr;
   });
 
+
+// GET /auth/users/:uid  — fetch a seller's public profile.
+export const getPublicUserProfile = async (uid) => {
+  const { data } = await api.get(`/auth/users/${uid}`);
+  if (!data.success) throw new Error(data.message || 'Profile not found.');
+  return data.data;
+};
+
+
 /** Cancel the last in-flight uploadImage request. */
 uploadImage.cancel = () => uploadImage._lastXhr?.abort();
 
-/**
- * GET /images/search/users?q=  — search users by username
- */
+
+// GET /images/search/users?q=  — search users by username
 export const searchUsersByName = async (query) => {
   const { data } = await api.get(`/images/search/users?q=${encodeURIComponent(query)}`);
   return data.data?.users || [];

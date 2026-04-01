@@ -233,11 +233,11 @@ export default function UploadImage({ onBack, onSuccess }) {
               <div className="price-row">
                 <div className="price-input-wrap">
                   <span className="price-symbol">฿</span>
-                  <input type="number" min="0" max="100000" step="1" placeholder="0" value={price} onChange={(e) => setPrice(e.target.value)} disabled={uploading} />
+                  <input type="number" min="20" max="100000" step="1" placeholder="20" value={price} onChange={(e) => setPrice(e.target.value)} disabled={uploading} />
                 </div>
-                <button type="button" className={`btn-free${price === 0 ? " active" : ""}`} onClick={() => setPrice("0")} disabled={uploading}>set as free</button>
+                <button type="button" className={`btn-free${price === 20 ? " active" : ""}`} onClick={() => setPrice("20")} disabled={uploading}>Min</button>
               </div>
-              <div className="price-hint">Set 0 or click "set as free" to publish at no cost</div>
+              <div className="price-hint">Set minimum price at 20 THB</div>
             </div>
 
             <div className="style-section">

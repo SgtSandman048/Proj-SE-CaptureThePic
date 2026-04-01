@@ -15,6 +15,7 @@ const {
   updateProfile,
   updateAvatar,
   //changePassword,
+  getPublicProfile,
 } = require('../controllers/authController');
 const { authenticate } = require('../middleware/authMiddleware');
 const { checkBan } = require('../middleware/banMiddleware');
@@ -117,6 +118,8 @@ router.get('/me', authenticate, checkBan, getMe);
 router.patch('/me', authenticate, updateProfileValidators, updateProfile);
 
 router.patch('/me/avatar', authenticate, avatarUpload.single('avatarFile'), updateAvatar);
+
+router.get('/users/:uid', getPublicProfile);
 
 //router.post('/change-password', authenticate, changePasswordValidators, changePassword);
 
