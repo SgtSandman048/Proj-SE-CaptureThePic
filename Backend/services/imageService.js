@@ -2,11 +2,9 @@
 
 const { db, FieldValue } = require('../config/firebase');
 const { IMAGE_STATUS } = require('../models/imageModel');
-const { createNotification } = require('./notificationService');
 
 const COL = 'images';
 
-// Create Image
 const createImage = async (imageDocument) => {
   const keywords = imageDocument.imageName
     .toLowerCase()
@@ -16,69 +14,74 @@ const createImage = async (imageDocument) => {
   const ref = await db()
     .collection(COL)
     .add({ ...imageDocument, searchKeywords: keywords });
-
-  // Notify the seller — photo uploaded successfully
-  await createNotification(imageDocument.sellerId, {
-    type: 'photo_uploaded',
-    message: `Your photo "${imageDocument.imageName}" has been uploaded and is pending review`,
-  });
-
   return ref.id;
 };
 
-// Read a image
 const getImageById = async (imageId) => {
   const snap = await db().collection(COL).doc(imageId).get();
   if (!snap.exists) return null;
   return { imageId: snap.id, ...snap.data() };
 };
 
-// Browse approved images with filters
 const getApprovedImages = async ({
   category = null,
   search = null,
+  tag = null,
+  sellerName = null,
   minPrice = null,
   maxPrice = null,
   limit = 20,
-  startAfter = null,
 } = {}) => {
-  let query = db()
+  // Fetch all approved images — no orderBy to avoid index requirement
+  const snap = await db()
     .collection(COL)
-    .where('status', '==', IMAGE_STATUS.APPROVED);
+    .where('status', '==', IMAGE_STATUS.APPROVED)
+    .get();
 
+  let docs = snap.docs.map((d) => ({ imageId: d.id, ...d.data() }));
+
+  // Sort by uploadDate in memory
+  docs.sort((a, b) => {
+    const dateA = a.uploadDate ? new Date(a.uploadDate) : new Date(0);
+    const dateB = b.uploadDate ? new Date(b.uploadDate) : new Date(0);
+    return dateB - dateA;
+  });
+
+  // Filter by category
   if (category) {
-    query = query.where('category', '==', category);
-  }
-  if (minPrice !== null) {
-    query = query.where('price', '>=', parseFloat(minPrice));
-  }
-  if (maxPrice !== null) {
-    query = query.where('price', '<=', parseFloat(maxPrice));
-  }
-  if (search) {
-    const keyword = search.toLowerCase().trim().split(/\s+/)[0];
-    query = query.where('searchKeywords', 'array-contains', keyword);
-  }
-  if (minPrice !== null || maxPrice !== null) {
-    query = query.orderBy('price', 'asc');
-  } else {
-    query = query.orderBy('uploadDate', 'desc');
+    docs = docs.filter(d => d.category?.toLowerCase() === category.toLowerCase());
   }
 
-  query = query.limit(parseInt(limit) || 20);
-
-  if (startAfter) {
-    const cursorSnap = await db().collection(COL).doc(startAfter).get();
-    if (cursorSnap.exists) {
-      query = query.startAfter(cursorSnap);
-    }
+  // Filter by name
+  if (search && !tag) {
+    const keyword = search.toLowerCase().trim();
+    docs = docs.filter(d =>
+      d.imageName?.toLowerCase().includes(keyword) ||
+      d.description?.toLowerCase().includes(keyword)
+    );
   }
 
-  const snap = await query.get();
-  return snap.docs.map((d) => ({ imageId: d.id, ...d.data() }));
+  // Filter by tag in memory
+  if (tag) {
+    const t = tag.toLowerCase().trim().replace(/^#/, '');
+    docs = docs.filter(d =>
+      d.tags?.some(dt => dt.toLowerCase().replace(/^#/, '').includes(t))
+    );
+  }
+
+  // Filter by sellerName in memory
+  if (sellerName) {
+    const s = sellerName.toLowerCase().trim();
+    docs = docs.filter(d => d.sellerName?.toLowerCase().includes(s));
+  }
+
+  // Filter by price
+  if (minPrice !== null) docs = docs.filter(d => d.price >= minPrice);
+  if (maxPrice !== null) docs = docs.filter(d => d.price <= maxPrice);
+
+  // Apply limit
+  return docs.slice(0, parseInt(limit) || 20);
 };
-
-// Seller's own images (all status)
 const getSellerImages = async (sellerId) => {
   const snap = await db()
     .collection(COL)
@@ -90,7 +93,6 @@ const getSellerImages = async (sellerId) => {
   return snap.docs.map((d) => ({ imageId: d.id, ...d.data() }));
 };
 
-// Admin: images awaiting approval
 const getPendingImages = async (limit = 50) => {
   const snap = await db()
     .collection(COL)
@@ -101,7 +103,6 @@ const getPendingImages = async (limit = 50) => {
   return snap.docs.map((d) => ({ imageId: d.id, ...d.data() }));
 };
 
-// Update fields
 const updateImage = async (imageId, fields) => {
   await db()
     .collection(COL)
@@ -109,7 +110,6 @@ const updateImage = async (imageId, fields) => {
     .update({ ...fields, updatedAt: FieldValue.serverTimestamp() });
 };
 
-// Increment a numeric stat field
 const incrementStat = async (imageId, field, amount = 1) => {
   await db()
     .collection(COL)
@@ -120,7 +120,6 @@ const incrementStat = async (imageId, field, amount = 1) => {
     });
 };
 
-// Delete image
 const softDeleteImage = async (imageId) => {
   await db()
     .collection(COL)
@@ -132,12 +131,7 @@ const softDeleteImage = async (imageId) => {
 };
 
 module.exports = {
-  createImage,
-  getImageById,
-  getApprovedImages,
-  getSellerImages,
-  getPendingImages,
-  updateImage,
-  incrementStat,
-  softDeleteImage,
+  createImage, getImageById, getApprovedImages,
+  getSellerImages, getPendingImages, updateImage,
+  incrementStat, softDeleteImage,
 };
