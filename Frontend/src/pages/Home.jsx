@@ -16,14 +16,6 @@ import "../assets/styles/HomePage.css";
 const FILTERS = ["All", "Nature", "Architecture", "People", "Abstract", "Animals", "Travel", "Food"];
 const SKELETON_HEIGHTS = [220, 160, 280, 195, 240, 170, 300, 185, 210, 260, 150, 230];
 
-const CATEGORIES = [
-  { label: "Photos",             seed: "photo",  emoji: "📷" },
-  { label: "Vectors",            seed: "vector", emoji: "✏️" },
-  { label: "Illustrations",      seed: "illus",  emoji: "🎨" },
-  { label: "AI Image Generator", seed: "ai",     emoji: "✨" },
-];
-
-const GALLERY_TABS = ["Handpicked content", "Most popular"];
 
 export default function Home({ onOrdersClick }) {
   const { user, logout } = useAuth();
@@ -164,20 +156,6 @@ export default function Home({ onOrdersClick }) {
             </div>
           </div>
         </header>
-
-        <section className="categories">
-          <div className="section-header">
-            <h2 className="section-title">Explore images that ignite your creativity</h2>
-          </div>
-          <div className="category-grid">
-            {CATEGORIES.map(({ label, seed }) => (
-              <div className="cat-item" key={label} onClick={() => setActiveFilter(label)}>
-                <img src={`https://picsum.photos/seed/${seed}/200/200`} alt={label} loading="lazy" />
-                <p>{label}</p>
-              </div>
-            ))}
-          </div>
-        </section>
 
         <section className="gallery-section">
           <h2 className="section-title" style={{ marginBottom: 20, fontSize: 32, fontWeight: 900, letterSpacing: "-0.8px" }}>
