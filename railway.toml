@@ -1,7 +1,6 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "Backend/dockerfile"
-buildContext = "Backend"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "node server.js"
