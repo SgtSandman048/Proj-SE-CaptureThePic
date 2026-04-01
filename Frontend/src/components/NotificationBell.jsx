@@ -61,7 +61,7 @@ export default function NotificationBell({ userId }) {
       {/* Dropdown */}
       {open && (
         <div style={{
-          position: 'fixed', left: '220px',
+          position: 'fixed', left: '220px', top: '120px',
           width: '300px',
           background: 'var(--bg-panel)',
           border: '1px solid var(--border)',
