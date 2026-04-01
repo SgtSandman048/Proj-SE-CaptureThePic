@@ -60,7 +60,7 @@
   color: #4a5568;
   font-family: 'DM Mono', monospace;
 }
-.breadcrumb span { cursor: pointer; transition: color 0.2s; }
+.breadcrumb span { cursor: default; transition: color 0.2s; }
 .breadcrumb span:hover { color: #4fc3c3; }
 .breadcrumb .sep { color: #2d3748; }
 .breadcrumb .current { color: #6b7280; cursor: default; }

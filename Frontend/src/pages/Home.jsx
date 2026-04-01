@@ -13,7 +13,7 @@ import { useToast } from "../hooks/useToast";
 import iconSearch from "../assets/icons/search.png";
 import "../assets/styles/HomePage.css";
 
-const FILTERS = ["All", "Nature", "Architecture", "People", "Abstract", "Animals", "Travel", "Food"];
+const FILTERS = ["All", "Nature", "Architecture", "People", "Animals", "Technology", "Food", "Travel","Abstract", "Fashion", "Sports", "Illustration", "Other",];
 const SKELETON_HEIGHTS = [220, 160, 280, 195, 240, 170, 300, 185, 210, 260, 150, 230];
 
 const CATEGORIES = [
@@ -22,6 +22,22 @@ const CATEGORIES = [
   { label: "Illustrations",      seed: "illus",  emoji: "🎨" },
   { label: "AI Image Generator", seed: "ai",     emoji: "✨" },
 ];
+
+// const CATEGORIES = [
+//   { id: "all",          label: "All",          icon: "◈" },
+//   { id: "nature",       label: "Nature",        icon: "🌿" },
+//   { id: "architecture", label: "Architecture",  icon: "🏛" },
+//   { id: "people",       label: "People",        icon: "👤" },
+//   { id: "animals",      label: "Animals",       icon: "🐾" },
+//   { id: "technology",   label: "Technology",    icon: "⚡" },
+//   { id: "food",         label: "Food",          icon: "🍽" },
+//   { id: "travel",       label: "Travel",        icon: "✈" },
+//   { id: "abstract",     label: "Abstract",      icon: "◎" },
+//   { id: "fashion",      label: "Fashion",       icon: "✦" },
+//   { id: "sports",       label: "Sports",        icon: "⚽" },
+//   { id: "illustration", label: "Illustration",  icon: "🖌" },
+//   { id: "other",        label: "Other",         icon: "•••" },
+// ];
 
 const GALLERY_TABS = ["Handpicked content", "Most popular"];
 
@@ -171,7 +187,7 @@ export default function Home({ onOrdersClick }) {
           </div>
           <div className="category-grid">
             {CATEGORIES.map(({ label, seed }) => (
-              <div className="cat-item" key={label} onClick={() => setActiveFilter(label)}>
+              <div className="cat-item" key={label} >
                 <img src={`https://picsum.photos/seed/${seed}/200/200`} alt={label} loading="lazy" />
                 <p>{label}</p>
               </div>

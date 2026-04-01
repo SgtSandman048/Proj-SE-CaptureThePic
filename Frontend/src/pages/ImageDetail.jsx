@@ -168,9 +168,7 @@ export default function ImageDetail({ imageId, onBack, onNavigate, isAdmin = fal
       <DetailTopBar onSearch={handleSearch} />
 
       <div className="breadcrumb">
-        <span onClick={onBack}>Home</span>
-        <span className="sep">/</span>
-        <span onClick={onBack}>Marketplace</span>
+        <span >Home</span>
         <span className="sep">/</span>
         <span className="current">{image.imageName}</span>
       </div>
@@ -380,15 +378,8 @@ function DetailTopBar({ onSearch }) {
 
   return (
     <header className="detail-topbar">
-      <div className="search-container">
-        <input
-          type="text"
-          placeholder="Search images… or @username #tag"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-        />
-        <button className="search-btn" onClick={handleSearch}>🔍</button>
+      <div>
+        
       </div>
       <div className="logo">Imagery</div>
     </header>

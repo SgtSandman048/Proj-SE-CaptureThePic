@@ -171,6 +171,39 @@ export const deleteUser = async (userId) => {
   return data.data;
 }
 
+// ── Wallet / Withdrawals ───────────────────────────────────────
+ 
+/**
+ * GET /admin/withdrawals
+ * Returns withdrawal requests. Default = pending only; pass all=true for all statuses.
+ * @param {{ all?: boolean, limit?: number }} params
+ * @returns {Array<Withdrawal>}
+ */
+export const getAdminWithdrawals = async ({ all = false, limit = 100 } = {}) => {
+  const params = new URLSearchParams();
+  if (all)   params.set("all",   "true");
+  if (limit) params.set("limit", String(limit));
+  const { data } = await api.get(`/admin/withdrawals?${params}`);
+  if (!data.success) throw new Error(data.message || "Failed to load withdrawals.");
+  return data.data.withdrawals || [];
+};
+ 
+/**
+ * PATCH /admin/withdrawals/:id/process
+ * Approve or reject a pending withdrawal request.
+ * @param {string} withdrawalId
+ * @param {"approved"|"rejected"} status
+ * @param {string|null} adminNote  — required when rejecting
+ */
+export const processWithdrawal = async (withdrawalId, status, adminNote = null) => {
+  const { data } = await api.patch(`/admin/withdrawals/${withdrawalId}/process`, {
+    status,
+    adminNote: adminNote?.trim() || null,
+  });
+  if (!data.success) throw new Error(data.message || "Failed to process withdrawal.");
+  return data.data;
+};
+
 // ── Dashboard ──────────────────────────────────────────────────
 
 /**

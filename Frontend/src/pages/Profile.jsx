@@ -596,7 +596,6 @@ export default function Profile({ onBack, theme = "dark", onThemeChange, onImage
               {user?.role === "user" && (
                 <button className={`settings-tab ${activeTab === "wallet" ? "active" : ""}`} onClick={() => setActiveTab("wallet")}>💰 Wallet</button>
               )}
-              <button className={`settings-tab ${activeTab === "appearance" ? "active" : ""}`} onClick={() => setActiveTab("appearance")}>🎨 Appearance</button>
             </div>
 
             <div className="settings-body">

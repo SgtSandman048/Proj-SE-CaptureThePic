@@ -315,3 +315,36 @@ body,html{font-family:var(--sans);background:var(--bg-base);color:var(--text-hi)
 
 @media(max-width:1100px){.image-gallery,.gallery-skeleton{column-count:3;}.img-mod-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));}}
 @media(max-width:768px){.image-gallery,.gallery-skeleton{column-count:2;}.stat-cards{grid-template-columns:repeat(2,1fr);}.order-mod-detail-grid{grid-template-columns:1fr 1fr;}}
+
+/* ── Wallet Moderation Tab ─────────────────────────────────── */
+.wmod-thumb {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: rgba(79,195,195,0.12);
+  border: 1px solid rgba(79,195,195,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.wmod-bank-chip {
+  background: rgba(79,195,195,0.1);
+  border: 1px solid rgba(79,195,195,0.2);
+  color: var(--admin-accent);
+  font-size: 10px;
+  font-family: var(--mono, monospace);
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+.wmod-amount {
+  font-family: var(--serif, 'Playfair Display', serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: #34d399;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+}
+.wmod-note-req {
+  font-size: 10px;
+  color: var(--admin-red, #f87171);
+  font-weight: 400;
+  font-family: var(--mono, monospace);
+}

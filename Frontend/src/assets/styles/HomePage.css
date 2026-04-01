@@ -396,7 +396,7 @@ body, html {
   position: relative;
   border-radius: 12px;
   overflow: hidden;
-  cursor: pointer;
+  cursor: default;
   border: 1px solid var(--border);
   transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
   background: var(--bg-raised);

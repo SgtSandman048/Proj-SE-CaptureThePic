@@ -20,6 +20,7 @@ export default function Sidebar({
   notifCount = null,
   onHomeClick,
   onOrdersClick,
+  onWalletClick,
   onNotificationsClick,
   onUsersClick,
   onProfileClick,
@@ -64,6 +65,10 @@ export default function Sidebar({
               onClick={onNotificationsClick}
               badge={notifCount}
             />
+            <NavItem icon="🗂"  label="Images"
+              active={activeNav === "images"}
+              onClick={onImagesClick}
+            />
             <NavItem icon="📦" label="Orders"
               active={activeNav === "orders"}
               onClick={onOrdersClick}
@@ -72,13 +77,13 @@ export default function Sidebar({
               active={activeNav === "users"}
               onClick={onUsersClick}
             />
+            <NavItem icon="💰" label="Wallet"
+              active={activeNav === "wallet"}
+              onClick={onWalletClick}
+            />
             <NavItem icon="📊" label="Stats"
               active={activeNav === "dashboard"}
               onClick={onDashboardClick}
-            />
-            <NavItem icon="🗂"  label="Images"
-              active={activeNav === "images"}
-              onClick={onImagesClick}
             />
           </>
         ) : (

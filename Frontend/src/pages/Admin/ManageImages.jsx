@@ -34,6 +34,8 @@ import {
   approveImage,
   rejectImage,
   getDashboardStats,
+  getAdminWithdrawals,
+  processWithdrawal,
 } from "../../services/adminService";
 import { useAuth } from "../../hooks/useAuth";
 import { useToast } from "../../hooks/useToast";
@@ -47,8 +49,9 @@ const TABS = [
   { id:"gallery",   label:"Gallery",          icon:"🖼"  },
   { id:"images",    label:"Image Moderation", icon:"🛡"  },
   { id:"orders",    label:"Order Moderation", icon:"💳" },
-  { id: "users",    label:"User Moderation",  icon: "👥" },
-  { id:"dashboard", label:"Dashboard",        icon:"📊" },
+  { id: "users",    label:"User Moderation",   icon: "👥" },
+  { id: "wallet",   label:"Wallet Moderation",  icon: "💰" },
+  { id:"dashboard", label:"Dashboard",          icon:"📊" },
 ];
 
 const ORDER_STATUS = {
@@ -73,6 +76,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
   const [notifCount,      setNotifCount]      = useState(null);
   const [pendingImgCount, setPendingImgCount] = useState(null);
   const [checkingCount,   setCheckingCount]   = useState(null);
+  const [pendingWalletCount, setPendingWalletCount] = useState(null);
  
   useEffect(() => {
     const fetch = () =>
@@ -85,6 +89,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
   useEffect(() => {
     getPendingImages().then((imgs) => setPendingImgCount(imgs.length)).catch(() => setPendingImgCount(0));
     getCheckingOrders().then((orders) => setCheckingCount(orders.length)).catch(() => setCheckingCount(0));
+    getAdminWithdrawals({ all: false }).then((w) => setPendingWalletCount(w.length)).catch(() => setPendingWalletCount(0));
   }, []);
  
   useEffect(() => {
@@ -95,7 +100,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
   }, [activeFilter, searchQuery, activeTab]);
  
   // Map internal tab IDs to sidebar activeNav values
-  const sidebarNav = { gallery: "home", images: "images", orders: "orders", users: "users", dashboard: "dashboard" };
+  const sidebarNav = { gallery: "home", images: "images", orders: "orders", users: "users", wallet: "wallet", dashboard: "dashboard" };
  
   const sharedSidebar = (
     <Sidebar user={user} isAdmin notifCount={notifCount}
@@ -105,6 +110,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
       onNotificationsClick={() => setActiveTab("alerts")}
       onImagesClick={() => setActiveTab("images")}
       onUsersClick={() => setActiveTab("users")}
+      onWalletClick={() => setActiveTab("wallet")}
       onDashboardClick={() => setActiveTab("dashboard")}
       onLogout={logout} />
   );
@@ -174,6 +180,7 @@ export default function ManageImages({ onOrdersClick, onNotificationsClick }) {
         {activeTab === "images"    && <ImageModerationTab showToast={showToast} onCountChange={setPendingImgCount} />}
         {activeTab === "orders"    && <OrderModerationTab showToast={showToast} onCountChange={setCheckingCount} />}
         {activeTab === "users"     && <ManageUsers showToast={showToast} onNotificationsClick={onNotificationsClick}/>}
+        {activeTab === "wallet"    && <WalletModerationTab showToast={showToast} onCountChange={setPendingWalletCount} />}
         {activeTab === "dashboard" && <DashboardTab onTabSwitch={setActiveTab} />}
       </main>
       <Toast toast={toast} />
@@ -772,6 +779,242 @@ function formatTime(ts) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
   return formatDate(ts);
+}
+
+// ════════════════════════════════════════════════════════════════
+// TAB — Wallet Moderation
+// ════════════════════════════════════════════════════════════════
+const WITHDRAWAL_STATUS = {
+  pending:   { label: "Pending",   color: "#f59e0b", bg: "rgba(245,158,11,0.12)"  },
+  approved:  { label: "Approved",  color: "#34d399", bg: "rgba(52,211,153,0.12)"  },
+  rejected:  { label: "Rejected",  color: "#f87171", bg: "rgba(248,113,113,0.12)" },
+  cancelled: { label: "Cancelled", color: "#6b7280", bg: "rgba(107,114,128,0.12)" },
+};
+
+function WalletModerationTab({ showToast, onCountChange }) {
+  const [withdrawals,  setWithdrawals]  = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState(null);
+  const [statusFilter, setStatusFilter] = useState("pending");
+  const [expandedId,   setExpandedId]   = useState(null);
+  const [cardState,    setCardState]    = useState({});
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const data = await getAdminWithdrawals({ all: true });
+      setWithdrawals(data);
+      onCountChange?.(data.filter((w) => w.status === "pending").length);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const setCard = (id, patch) =>
+    setCardState((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+
+  const handleProcess = async (withdrawalId, status) => {
+    const note = cardState[withdrawalId]?.note?.trim() || null;
+    if (status === "rejected" && !note) {
+      showToast("✗ An admin note is required when rejecting.", "error"); return;
+    }
+    setCard(withdrawalId, { acting: true });
+    try {
+      await processWithdrawal(withdrawalId, status, note);
+      showToast(
+        status === "approved"
+          ? "✓ Withdrawal approved — funds deducted from seller balance."
+          : "✓ Withdrawal rejected — seller has been notified.",
+        "success"
+      );
+      setWithdrawals((prev) =>
+        prev.map((w) => w.withdrawalId === withdrawalId ? { ...w, status, adminNote: note } : w)
+      );
+      onCountChange?.((c) => Math.max(0, (c || 1) - 1));
+      setExpandedId(null);
+    } catch (e) { showToast(`✗ ${e.message}`, "error"); }
+    finally { setCard(withdrawalId, { acting: false }); }
+  };
+
+  const counts = withdrawals.reduce((acc, w) => {
+    acc[w.status] = (acc[w.status] || 0) + 1;
+    acc.all = (acc.all || 0) + 1;
+    return acc;
+  }, {});
+
+  const filtered = withdrawals.filter(
+    (w) => statusFilter === "all" || w.status === statusFilter
+  );
+
+  return (
+    <div className="mod-panel">
+      <div className="mod-header">
+        <div>
+          <div className="mod-title">Wallet Moderation</div>
+          <div className="mod-subtitle">Review and process seller withdrawal requests.</div>
+        </div>
+        <button className="mod-refresh-btn" onClick={load}>↻ Refresh</button>
+      </div>
+
+      {/* Status filter chips */}
+      <div className="mod-status-row">
+        {["all", "pending", "approved", "rejected", "cancelled"].map((key) => (
+          <button
+            key={key}
+            className={`mod-status-chip ${key} ${statusFilter === key ? "active" : ""}`}
+            onClick={() => setStatusFilter(key)}
+          >
+            <span className="mod-chip-dot" />
+            {key === "all"
+              ? `All (${counts.all || 0})`
+              : `${WITHDRAWAL_STATUS[key]?.label || key} (${counts[key] || 0})`}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="mod-loading">
+          {[1,2,3].map((i) => <div key={i} className="mod-skeleton" style={{ height: 76 }} />)}
+        </div>
+      ) : error ? (
+        <div className="mod-error"><span>⚠</span><p>{error}</p><button onClick={load}>Try Again</button></div>
+      ) : filtered.length === 0 ? (
+        <div className="mod-empty">
+          <div className="mod-empty-icon">💰</div>
+          <p>{statusFilter === "pending" ? "No pending withdrawal requests." : `No ${statusFilter} withdrawals.`}</p>
+        </div>
+      ) : (
+        <div className="order-mod-list">
+          {filtered.map((w, idx) => {
+            const cs  = cardState[w.withdrawalId] || {};
+            const st  = WITHDRAWAL_STATUS[w.status] || WITHDRAWAL_STATUS.pending;
+            const exp = expandedId === w.withdrawalId;
+            const isPending = w.status === "pending";
+
+            return (
+              <div
+                key={w.withdrawalId}
+                className={`order-mod-card ${exp ? "expanded" : ""}`}
+                style={{ animationDelay: `${idx * 0.04}s` }}
+              >
+                {/* Card header */}
+                <div
+                  className="order-mod-header"
+                  onClick={() => setExpandedId(exp ? null : w.withdrawalId)}
+                >
+                  <div className="wmod-thumb">🏦</div>
+
+                  <div className="order-mod-info">
+                    <div className="order-mod-image-name">{w.sellerName || w.sellerId}</div>
+                    <div className="order-mod-meta">
+                      <span className="order-mod-id">#{w.withdrawalId?.slice(-10)}</span>
+                      <span className="order-mod-date">{formatDate(w.createdAt)}</span>
+                      <span className="wmod-bank-chip">{w.bankName}</span>
+                    </div>
+                  </div>
+
+                  <div className="order-mod-right">
+                    <span className="wmod-amount">{formatTHB(w.amount)}</span>
+                    <span
+                      className="order-status-badge"
+                      style={{ color: st.color, background: st.bg, border: `1px solid ${st.color}33` }}
+                    >
+                      {st.label}
+                    </span>
+                    <span className="order-mod-chevron">{exp ? "▲" : "▼"}</span>
+                  </div>
+                </div>
+
+                {/* Expanded body */}
+                {exp && (
+                  <div className="order-mod-body">
+                    {/* Detail grid */}
+                    <div className="order-mod-detail-grid">
+                      {[
+                        ["Withdrawal ID", w.withdrawalId],
+                        ["Seller ID",     w.sellerId],
+                        ["Amount",        formatTHB(w.amount), true],
+                        ["Bank",          w.bankName],
+                        ["Account No.",   w.accountNumber],
+                        ["Account Name",  w.accountName],
+                        ["Requested",     formatDate(w.createdAt)],
+                        w.processedAt && ["Processed", formatDate(w.processedAt)],
+                        w.note        && ["Seller Note", w.note],
+                      ].filter(Boolean).map(([lbl, val, highlight]) => (
+                        <div key={lbl} className="order-mod-detail-item">
+                          <span className="order-mod-detail-label">{lbl}</span>
+                          <span className={`order-mod-detail-value ${highlight ? "highlight" : ""}`}>{val}</span>
+                        </div>
+                      ))}
+                      {w.adminNote && (
+                        <div className="order-mod-detail-item" style={{ gridColumn: "1/-1" }}>
+                          <span className="order-mod-detail-label">Admin Note</span>
+                          <span className="order-mod-detail-value">{w.adminNote}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="order-mod-divider" />
+
+                    {/* Actions */}
+                    {isPending ? (
+                      <>
+                        <div className="admin-note-section">
+                          <label className="admin-note-label">
+                            ADMIN NOTE <span className="wmod-note-req">(required when rejecting)</span>
+                          </label>
+                          <textarea
+                            className="admin-note-input"
+                            rows={2}
+                            placeholder="Reason for rejection, or transfer reference for approval…"
+                            value={cs.note || ""}
+                            onChange={(e) => setCard(w.withdrawalId, { note: e.target.value })}
+                            disabled={cs.acting}
+                          />
+                        </div>
+                        <div className="order-mod-actions">
+                          <button
+                            className="btn-verify-approve"
+                            disabled={cs.acting}
+                            onClick={() => handleProcess(w.withdrawalId, "approved")}
+                          >
+                            {cs.acting ? "⏳" : "✓"} Approve & Transfer
+                          </button>
+                          <button
+                            className="btn-verify-reject"
+                            disabled={cs.acting}
+                            onClick={() => handleProcess(w.withdrawalId, "rejected")}
+                          >
+                            {cs.acting ? "⏳" : "✗"} Reject Request
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div
+                        className="verified-badge"
+                        style={{
+                          background: st.bg,
+                          border: `1px solid ${st.color}33`,
+                          color: st.color,
+                        }}
+                      >
+                        {w.status === "approved"
+                          ? "✓ Approved — funds transferred to seller's bank."
+                          : w.status === "rejected"
+                          ? "✗ Rejected — seller has been notified."
+                          : `Status: ${w.status}`}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
  
