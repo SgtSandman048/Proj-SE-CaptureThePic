@@ -1,9 +1,7 @@
 // config/cloudinary.js
-
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
-//const logger = require('../utils/logger');
 
 // SDK Configuration
 cloudinary.config({
@@ -13,7 +11,6 @@ cloudinary.config({
   secure: true,
 });
 
-//logger.info('✅ Cloudinary configured');
 console.log('[!] Connected to Cloudinary');
 
 // File filter
@@ -83,7 +80,7 @@ const originalStorage = new CloudinaryStorage({
     return {
       folder: 'image-store/originals',
       allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'raw'],
-      type: 'private',                    // 🔒 Private — not publicly accessible
+      type: 'private',                    
       public_id: `orig_${Date.now()}_${baseName}`,
     };
   },
@@ -94,18 +91,17 @@ const slipStorage = new CloudinaryStorage({
   params: async (req, file) => ({
     folder: 'image-store/slips',
     allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-    type: 'private',   // 🔒 Private — admin eyes only
+    type: 'private',   
     public_id: `slip_${req.params.id || 'unknown'}_${Date.now()}`,
     transformation: [
-      // Resize large slip images to save storage — keep readable quality
       { width: 1600, crop: 'limit', quality: 'auto:good' },
     ],
   }),
 });
 
 // Multer values
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
-const MAX_SLIP_SIZE  = 10 * 1024 * 1024;  // 10 MB for slips
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const MAX_SLIP_SIZE  = 10 * 1024 * 1024;
 
 // Upload watermarked image
 const uploadWatermarked = multer({
@@ -132,7 +128,6 @@ const uploadSlipFile = multer({
 const generateSignedUrl = (publicId, expiresIn = 3600) => {
   return cloudinary.utils.private_download_url(publicId, 'jpg', {
     expires_at: Math.floor(Date.now() / 1000) + expiresIn,
-    // True = Force download, False = View before download
     attachment: true,
   });
 };
@@ -144,11 +139,9 @@ const deleteCloudinaryImage = async (publicId, type = 'upload') => {
       resource_type: 'image',
       type,
     });
-    //logger.info(`Cloudinary delete [${publicId}]: ${result.result}`);
     console.log(`[!] Cloudinary has deleted [${publicId}]: ${result.result}`);
     return result;
   } catch (error) {
-    //logger.error(`Cloudinary delete failed [${publicId}]:`, error.message);
     console.error(`[!] Cloudinary cannot delete [${publicId}]:`, error.message);
     throw error;
   }
