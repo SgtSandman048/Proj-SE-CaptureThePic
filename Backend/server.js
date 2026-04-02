@@ -16,17 +16,18 @@ const { sendError } = require('./utils/apiResponse');
 
 const PORT = process.env.PORT || 8080;
 
-// Middleware
-const allowedOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
-  : ['http://localhost:5174'];
+const allowedOrigins = [
+  'http://localhost:5174',
+  'http://127.0.0.1:5174',
+];
 
+// Middleware
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (curl, Postman, server-to-server)
+    // Allow requests with no origin (e.g. curl, Postman, server-to-server)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS: origin '${origin}' not allowed`));
+    callback(new Error(`CORS policy: origin ${origin} not allowed`));
   },
   credentials: true,
 }));
