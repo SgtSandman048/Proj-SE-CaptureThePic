@@ -19,6 +19,7 @@ const PORT = process.env.PORT || 8080;
 const allowedOrigins = [
   'http://localhost:5174',
   'http://127.0.0.1:5174',
+  'https://proj-se-capturethepic-frontend.onrender.com'
 ];
 
 // Middleware
