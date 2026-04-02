@@ -34,8 +34,8 @@ RUN npm install -g serve
 
 COPY --from=builder /app/dist ./dist
 
-ENV PORT=4173
+ENV PORT=5174
 
-EXPOSE 4173
+EXPOSE 5174
 
-CMD ["serve", "-s", "dist", "-l", "4173", "--no-clipboard"]
+CMD ["serve", "-s", "dist", "-l", "5174", "--no-clipboard"]

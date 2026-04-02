@@ -11,24 +11,22 @@ const imageRoutes = require('./routes/imageRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const walletRoutes = require('./routes/walletRoutes');
-const notificationRoutes = require('./routes/notificationRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');  // ← add this
 const { sendError } = require('./utils/apiResponse');
 
 const PORT = process.env.PORT || 8080;
 
-// FIX: Read allowed origin from env var so it works both locally and on Railway.
-// Set CORS_ORIGIN=https://your-frontend.up.railway.app in Railway environment variables.
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5174')
-  .split(',')
-  .map(o => o.trim());
-
 // Middleware
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+  : ['http://localhost:5174'];
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (e.g. mobile apps, curl)
+    // Allow requests with no origin (curl, Postman, server-to-server)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS policy: origin ${origin} not allowed`));
+    callback(new Error(`CORS: origin '${origin}' not allowed`));
   },
   credentials: true,
 }));
@@ -56,5 +54,4 @@ app.use((req, res) => {
 // Start Server
 app.listen(PORT, () => {
   console.log(`[!] Server is running on http://localhost:${PORT}`);
-  console.log(`[!] Allowed CORS origins: ${allowedOrigins.join(', ')}`);
 });
