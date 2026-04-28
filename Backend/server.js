@@ -17,11 +17,7 @@ const { sendError } = require('./utils/apiResponse');
 const PORT = process.env.PORT || 8080;
 
 const allowedOrigins = [
-<<<<<<< HEAD
-  'https://proj-se-capturethepic-frontend.onrender.com',
-=======
   'https://proj-se-capturethepic-frontend.onrender.com'
->>>>>>> ef24e9c8224565f3215bc8b39929c4d86778ba82
 ];
 
 // Middleware
