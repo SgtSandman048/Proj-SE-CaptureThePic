@@ -4,7 +4,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://proj-se-capturethepic-backend.onrender.com/",
+  baseURL: import.meta.env.VITE_API_URL || "https://proj-se-capturethepic-backend.onrender.com/api",
   withCredentials: true, // send httpOnly refresh-token cookie
 });
 
