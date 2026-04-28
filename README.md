@@ -1,11 +1,15 @@
-# Proj-SE-CaptureThePic
+# Project-SE: Capture the Pic
 
-### Welcome to second project of this semester.
-### This project is the part of Software-Engineer subject.
-### So hope Professor give us excellent score.
+Welcome to our second project of the semester!
+This project was developed as part of our **Software Engineering** course. 
+We've put a lot of work into it, and we hope you find it impressive!
 
 
-## What's this project?
-### This project is the Image selling website, like the Shutterstock.
-### You can Purchase your favorite image here and Download into your device.
-### Or you can Place your own image here and Earn your money.
+## About the Project
+Capture the Pic is an image-selling platform inspired by websites like Shutterstock. 
+Users can **purchase** their favorite images and **download** them directly to their devices. 
+Alternatively, you can **upload** your own photography to showcase your work or **earn income** from your talent.
+
+
+## 🔗 Live Demo
+Check out the full website here: [Capture the Pic](https://proj-se-capturethepic-frontend.onrender.com/)
